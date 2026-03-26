@@ -1,26 +1,141 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@plugin "tailwindcss-animate";
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-xl: var(--radius);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+:root {
+  /* Earth Tone - Light (Stone-50 based) */
+  --background: #fafaf9; /* stone-50 */
+  --foreground: #292524; /* stone-800 */
+
+  --card: #ffffff;
+  --card-foreground: #292524;
+
+  --popover: #ffffff;
+  --popover-foreground: #292524;
+
+  --primary: #292524; /* stone-800 */
+  --primary-foreground: #fafaf9; /* stone-50 */
+
+  --secondary: #e7e5e4; /* stone-200 */
+  --secondary-foreground: #1c1917; /* stone-900 */
+
+  --muted: #f5f5f4; /* stone-100 */
+  --muted-foreground: #78716c; /* stone-500 */
+
+  --accent: #f5f5f4; /* stone-100 */
+  --accent-foreground: #1c1917; /* stone-900 */
+
+  --destructive: #be123c; /* rose-700 */
+  --destructive-foreground: #fafaf9;
+
+  --border: #e7e5e4; /* stone-200 */
+  --input: #e7e5e4;
+  --ring: #292524; /* stone-800 */
+
+  --radius: 0.75rem; /* 12px */
+}
+
+.dark {
+  /* Earth Tone - Dark (Stone-900 based) */
+  --background: #1c1917; /* stone-900 */
+  --foreground: #f5f5f4; /* stone-100 */
+
+  --card: #292524; /* stone-800 */
+  --card-foreground: #f5f5f4;
+
+  --popover: #292524;
+  --popover-foreground: #f5f5f4;
+
+  --primary: #f5f5f4; /* stone-100 */
+  --primary-foreground: #1c1917; /* stone-900 */
+
+  --secondary: #44403c; /* stone-700 */
+  --secondary-foreground: #f5f5f4;
+
+  --muted: #292524; /* stone-800 */
+  --muted-foreground: #a8a29e; /* stone-400 */
+
+  --accent: #292524; /* stone-800 */
+  --accent-foreground: #f5f5f4;
+
+  --destructive: #9f1239; /* rose-800 */
+  --destructive-foreground: #f5f5f4;
+
+  --border: #44403c; /* stone-700 */
+  --input: #44403c;
+  --ring: #d6d3d1; /* stone-300 */
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Scrollbar Styles */
+@layer utilities {
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Global scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 99px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted-foreground);
 }

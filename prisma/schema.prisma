@@ -1,0 +1,163 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  email         String    @unique
+  password      String?
+  provider      String    @default("credentials")
+  providerId    String?
+  name          String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  
+  // Relations
+  wallets       Wallet[]
+  categories    Category[]
+  transactions  Transaction[]
+  subscriptions Subscription[]
+  wishlist      WishlistItem[]
+  goals         YearlyGoal[]
+  settings      UserSettings?
+  slips         PaymentSlip[]
+}
+
+model Wallet {
+  id        String   @id @default(cuid())
+  name      String
+  type      String   // cash, bank, credit, investment, other
+  balance   Float    @default(0)
+  color     String?
+  icon      String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Transactions as source
+  transactions      Transaction[] @relation("SourceWallet")
+  // Transactions as target (for transfers)
+  targetTransfers   Transaction[] @relation("TargetWallet")
+  
+  @@index([userId])
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String
+  type      String   // income, expense, transfer, adjustment
+  icon      String?
+  color     String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  transactions Transaction[]
+  
+  @@index([userId])
+}
+
+model Transaction {
+  id              String   @id @default(cuid())
+  date            DateTime @default(now())
+  amount          Float
+  type            String   // income, expense, transfer, adjustment
+  note            String?
+  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  walletId        String
+  wallet          Wallet   @relation("SourceWallet", fields: [walletId], references: [id], onDelete: Cascade)
+  
+  targetWalletId  String?
+  targetWallet    Wallet?  @relation("TargetWallet", fields: [targetWalletId], references: [id])
+  
+  categoryId      String?
+  category        Category? @relation(fields: [categoryId], references: [id])
+  
+  slipId          String?  @unique
+  slip            PaymentSlip? @relation(fields: [slipId], references: [id])
+  
+  @@index([userId])
+  @@index([walletId])
+  @@index([categoryId])
+}
+
+model Subscription {
+  id                String    @id @default(cuid())
+  name              String
+  price             Float
+  cycle             String    // daily, monthly, yearly
+  nextBillingDate   DateTime?
+  lastPaidDate      DateTime?
+  lastTransactionId String?
+  url               String?
+  note              String?
+  
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+model WishlistItem {
+  id                String   @id @default(cuid())
+  name              String
+  price             Float
+  priority          String   // low, medium, high
+  status            String   @default("active") // active, bought
+  url               String?
+  image             String?
+  lastTransactionId String?
+  note              String?
+  createdAt         DateTime @default(now())
+  
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+model YearlyGoal {
+  id          String   @id @default(cuid())
+  title       String
+  year        Int
+  status      String   // not_started, in_progress, done
+  description String?
+  createdAt   DateTime @default(now())
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+}
+
+model UserSettings {
+  id              String  @id @default(cuid())
+  theme           String  @default("system")
+  currency        String  @default("THB")
+  defaultWalletId String?
+  
+  userId          String  @unique
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PaymentSlip {
+  id              String   @id @default(cuid())
+  fileName        String
+  uploadDate      DateTime @default(now())
+  imagePath       String
+  qrData          Json?    // Stores amount, recipient, rawData
+  note            String?
+  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  transaction     Transaction?
+  
+  @@index([userId])
+}

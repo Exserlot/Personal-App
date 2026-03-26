@@ -1,0 +1,28 @@
+[
+  {
+    "name": "SCB",
+    "type": "bank",
+    "balance": 0,
+    "color": "#000000",
+    "id": "20ed5d20-bf93-461f-ab10-fb3e73a06a5f",
+    "userId": "fb30df87-050a-4d3d-b808-218664c12b5a",
+    "icon": "/icons/banks/SCB.png"
+  },
+  {
+    "name": "KBank",
+    "type": "bank",
+    "balance": 0,
+    "color": "#000000",
+    "id": "40bd544f-732d-4de3-9bc8-0687c47fa562",
+    "userId": "fb30df87-050a-4d3d-b808-218664c12b5a",
+    "icon": "/icons/banks/KBANK.png"
+  },
+  {
+    "name": "Cash",
+    "type": "cash",
+    "balance": 11500,
+    "color": "#000000",
+    "id": "05caaf07-7cdf-41ca-a14a-ff6491697ce7",
+    "userId": "0820045b-e078-487c-96b6-8b04837fb61c"
+  }
+]
