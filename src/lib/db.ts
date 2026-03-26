@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 
-const DATA_DIR = path.join(process.cwd(), "data");
+const DATA_DIR = path.join(process.cwd(), "..", "data");
 
 export async function readJSON<T>(filename: string): Promise<T | null> {
   const filePath = path.join(DATA_DIR, filename);
