@@ -1,5 +1,11 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -11,153 +17,211 @@ model User {
   username      String    @unique
   email         String    @unique
   password      String?
-  provider      String    @default("credentials")
+  provider      String
   providerId    String?
   name          String?
   image         String?
   createdAt     DateTime  @default(now())
-  
-  // Relations
+
+  wishlistItems WishlistItem[]
+  tasks         Task[]
+  habits        Habit[]
   wallets       Wallet[]
   categories    Category[]
   transactions  Transaction[]
+  slips         PaymentSlip[]
+  investments   InvestmentAsset[]
   subscriptions Subscription[]
-  wishlist      WishlistItem[]
   goals         YearlyGoal[]
   settings      UserSettings?
-  slips         PaymentSlip[]
+}
+
+model WishlistItem {
+  id                String           @id @default(cuid())
+  name              String
+  price             Decimal
+  priority          WishlistPriority @default(MEDIUM)
+  status            WishlistStatus   @default(ACTIVE)
+  url               String?
+  image             String?
+  lastTransactionId String?
+  note              String?
+  userId            String
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime         @default(now())
+}
+
+enum WishlistPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum WishlistStatus {
+  ACTIVE
+  BOUGHT
+}
+
+model Task {
+  id        String       @id @default(cuid())
+  title     String
+  completed Boolean      @default(false)
+  date      String       // ISO Date "YYYY-MM-DD"
+  priority  TaskPriority @default(MEDIUM)
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Habit {
+  id             String   @id @default(cuid())
+  name           String
+  streak         Int      @default(0)
+  completedDates String[] // Array of "YYYY-MM-DD"
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Wallet {
-  id        String   @id @default(cuid())
-  name      String
-  type      String   // cash, bank, credit, investment, other
-  balance   Float    @default(0)
-  color     String?
-  icon      String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Transactions as source
-  transactions      Transaction[] @relation("SourceWallet")
-  // Transactions as target (for transfers)
-  targetTransfers   Transaction[] @relation("TargetWallet")
-  
-  @@index([userId])
+  id           String     @id @default(cuid())
+  name         String
+  type         WalletType
+  balance      Decimal    @default(0)
+  color        String?
+  icon         String?
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  transactions Transaction[] @relation("WalletTransactions")
+  transfers    Transaction[] @relation("TargetWalletTransactions")
+}
+
+enum WalletType {
+  CASH
+  BANK
+  CREDIT
+  INVESTMENT
+  OTHER
 }
 
 model Category {
-  id        String   @id @default(cuid())
-  name      String
-  type      String   // income, expense, transfer, adjustment
-  icon      String?
-  color     String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id           String          @id @default(cuid())
+  name         String
+  type         TransactionType
+  icon         String?
+  color        String?
+  userId       String
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
-  
-  @@index([userId])
+}
+
+enum TransactionType {
+  income
+  expense
+  transfer
+  adjustment
 }
 
 model Transaction {
-  id              String   @id @default(cuid())
-  date            DateTime @default(now())
-  amount          Float
-  type            String   // income, expense, transfer, adjustment
-  note            String?
-  
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  walletId        String
-  wallet          Wallet   @relation("SourceWallet", fields: [walletId], references: [id], onDelete: Cascade)
-  
-  targetWalletId  String?
-  targetWallet    Wallet?  @relation("TargetWallet", fields: [targetWalletId], references: [id])
-  
-  categoryId      String?
-  category        Category? @relation(fields: [categoryId], references: [id])
-  
-  slipId          String?  @unique
-  slip            PaymentSlip? @relation(fields: [slipId], references: [id])
-  
-  @@index([userId])
-  @@index([walletId])
-  @@index([categoryId])
+  id             String          @id @default(cuid())
+  date           DateTime        @default(now())
+  amount         Decimal
+  type           TransactionType
+  categoryId     String
+  category       Category        @relation(fields: [categoryId], references: [id])
+  walletId       String
+  wallet         Wallet          @relation("WalletTransactions", fields: [walletId], references: [id])
+  targetWalletId String?
+  targetWallet   Wallet?         @relation("TargetWalletTransactions", fields: [targetWalletId], references: [id])
+  note           String?
+  slipId         String?
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PaymentSlip {
+  id                  String   @id @default(cuid())
+  fileName            String
+  uploadDate          DateTime @default(now())
+  imagePath           String
+  qrData              Json?    // Store qrData as JSON (amount, recipient, etc.)
+  linkedTransactionId String?
+  note                String?
+  userId              String
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model InvestmentAsset {
+  id             String         @id @default(cuid())
+  name           String
+  type           InvestmentType
+  amountInvested Decimal
+  currentValue   Decimal
+  note           String?
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt      DateTime       @updatedAt
+}
+
+enum InvestmentType {
+  STOCK
+  CRYPTO
+  FUND
+  OTHER
 }
 
 model Subscription {
-  id                String    @id @default(cuid())
+  id                String       @id @default(cuid())
   name              String
-  price             Float
-  cycle             String    // daily, monthly, yearly
+  price             Decimal
+  cycle             BillingCycle
   nextBillingDate   DateTime?
   lastPaidDate      DateTime?
   lastTransactionId String?
   url               String?
   note              String?
-  
   userId            String
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model WishlistItem {
-  id                String   @id @default(cuid())
-  name              String
-  price             Float
-  priority          String   // low, medium, high
-  status            String   @default("active") // active, bought
-  url               String?
-  image             String?
-  lastTransactionId String?
-  note              String?
-  createdAt         DateTime @default(now())
-  
-  userId            String
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
+enum BillingCycle {
+  DAILY
+  MONTHLY
+  YEARLY
 }
 
 model YearlyGoal {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   title       String
   year        Int
-  status      String   // not_started, in_progress, done
+  status      GoalStatus @default(NOT_STARTED)
   description String?
-  createdAt   DateTime @default(now())
-  
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime   @default(now())
+}
+
+enum GoalStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  DONE
 }
 
 model UserSettings {
-  id              String  @id @default(cuid())
-  theme           String  @default("system")
+  userId          String  @id
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme           Theme   @default(SYSTEM)
   currency        String  @default("THB")
   defaultWalletId String?
-  
-  userId          String  @unique
-  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-model PaymentSlip {
-  id              String   @id @default(cuid())
-  fileName        String
-  uploadDate      DateTime @default(now())
-  imagePath       String
-  qrData          Json?    // Stores amount, recipient, rawData
-  note            String?
-  
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  transaction     Transaction?
-  
-  @@index([userId])
+enum Theme {
+  LIGHT
+  DARK
+  SYSTEM
 }

@@ -2,9 +2,8 @@
 
 import bcrypt from "bcryptjs";
 import { signIn, signOut } from "@/lib/auth";
-import { findUserByUsername, findUserByEmail, createUser } from "@/lib/db";
-import type { User } from "@/types";
 import { AuthError } from "next-auth";
+import { prisma } from "@/lib/prisma";
 
 export async function signInWithCredentials(formData: FormData) {
   const username = formData.get("username") as string;
@@ -53,33 +52,35 @@ export async function signUpWithCredentials(formData: FormData) {
     return { error: "Password must be at least 6 characters" };
   }
 
-  // Check if username already exists
-  const existingUserByUsername = await findUserByUsername(username);
-  if (existingUserByUsername) {
-    return { error: "Username already taken" };
-  }
-
-  // Check if email already exists
-  const existingUserByEmail = await findUserByEmail(email);
-  if (existingUserByEmail) {
-    return { error: "Email already registered" };
-  }
-
-  // Hash password
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  // Create user
-  const newUser: User = {
-    id: crypto.randomUUID(),
-    username,
-    email,
-    password: hashedPassword,
-    provider: "credentials",
-    createdAt: new Date().toISOString(),
-  };
-
   try {
-    await createUser(newUser);
+    // Check if username already exists
+    const existingUserByUsername = await prisma.user.findUnique({
+      where: { username }
+    });
+    if (existingUserByUsername) {
+      return { error: "Username already taken" };
+    }
+
+    // Check if email already exists
+    const existingUserByEmail = await prisma.user.findUnique({
+      where: { email }
+    });
+    if (existingUserByEmail) {
+      return { error: "Email already registered" };
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user in Prisma
+    await prisma.user.create({
+      data: {
+        username,
+        email,
+        password: hashedPassword,
+        provider: "credentials",
+      }
+    });
     
     // Auto sign in after registration
     await signIn("credentials", {

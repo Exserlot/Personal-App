@@ -22,13 +22,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // Dynamic imports to avoid edge runtime issues
         const bcrypt = await import("bcryptjs");
-        const { findUserByUsername } = await import("@/lib/db");
+        const { prisma } = await import("@/lib/prisma");
 
         const username = credentials.username as string;
         const password = credentials.password as string;
 
-        // Find user by username
-        const user = await findUserByUsername(username);
+        // Find user by username using Prisma
+        const user = await prisma.user.findUnique({
+          where: { username }
+        });
 
         if (!user || !user.password) {
           return null;
@@ -46,8 +48,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           id: user.id,
           username: user.username,
           email: user.email,
-          name: user.name,
-          image: user.image,
+          name: user.name ?? undefined,
+          image: user.image ?? undefined,
         };
       },
     }),
@@ -60,28 +62,30 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!email) return false;
 
         // Dynamic imports
-        const { findUserByEmail, createUser } = await import("@/lib/db");
+        const { prisma } = await import("@/lib/prisma");
 
-        // Check if user already exists
-        let existingUser = await findUserByEmail(email);
+        // Check if user already exists in Prisma
+        let existingUser = await prisma.user.findUnique({
+          where: { email }
+        });
 
         if (!existingUser) {
-          // Create new user from OAuth
-          const newUser: AppUser = {
-            id: crypto.randomUUID(),
-            username: email.split("@")[0], // Use email prefix as username
-            email: email,
-            provider: "google",
-            providerId: account.providerAccountId,
-            name: user.name || undefined,
-            image: user.image || undefined,
-            createdAt: new Date().toISOString(),
-          };
-          existingUser = await createUser(newUser);
+          // Create new user from OAuth in Prisma
+          existingUser = await prisma.user.create({
+            data: {
+              username: email.split("@")[0], // Use email prefix as username
+              email: email,
+              provider: "google",
+              providerId: account.providerAccountId,
+              name: user.name || undefined,
+              image: user.image || undefined,
+            }
+          });
         }
 
-        // Update user object with our internal ID
+        // Update user object with our internal ID and username
         user.id = existingUser.id;
+        user.username = existingUser.username;
       }
 
       return true;
