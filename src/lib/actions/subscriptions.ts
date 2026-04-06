@@ -1,15 +1,11 @@
 "use server";
 
-import { Subscription } from "@/types";
+import { Subscription, BillingCycle } from "@/types";
 import { revalidatePath } from "next/cache";
-import { randomUUID } from "crypto";
 import { auth } from "@/lib/auth";
-import { Repository } from "@/lib/repository";
+import { prisma } from "@/lib/prisma";
 import { getWallets, getCategories, addCategory, addTransaction, deleteTransaction } from "./finance";
 import { getSettings } from "./settings";
-
-// Repositories
-const subscriptionRepo = new Repository<Subscription>("subscriptions.json");
 
 // Helper to get current user
 async function getCurrentUser() {
@@ -20,11 +16,26 @@ async function getCurrentUser() {
   return session.user.id;
 }
 
+// Helpers
+function mapSubscription(sub: any): Subscription {
+  return {
+    ...sub,
+    price: sub.price.toNumber(),
+    cycle: sub.cycle.toLowerCase() as BillingCycle,
+    nextBillingDate: sub.nextBillingDate ? sub.nextBillingDate.toISOString() : undefined,
+    lastPaidDate: sub.lastPaidDate ? sub.lastPaidDate.toISOString() : null,
+  };
+}
+
 export async function getSubscriptions(): Promise<Subscription[]> {
   try {
     const userId = await getCurrentUser();
-    return await subscriptionRepo.getByUserId(userId);
-  } catch {
+    const subs = await prisma.subscription.findMany({
+      where: { userId }
+    });
+    return subs.map(mapSubscription);
+  } catch (error) {
+    console.error("getSubscriptions error:", error);
     return [];
   }
 }
@@ -32,12 +43,19 @@ export async function getSubscriptions(): Promise<Subscription[]> {
 export async function addSubscription(data: Omit<Subscription, "id" | "userId">): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    const newSubscription: Subscription = {
-      ...data,
-      id: randomUUID(),
-      userId,
-    };
-    await subscriptionRepo.add(newSubscription);
+    await prisma.subscription.create({
+      data: {
+        name: data.name,
+        price: data.price,
+        cycle: data.cycle.toUpperCase() as any,
+        nextBillingDate: data.nextBillingDate ? new Date(data.nextBillingDate) : undefined,
+        lastPaidDate: data.lastPaidDate ? new Date(data.lastPaidDate) : undefined,
+        lastTransactionId: data.lastTransactionId,
+        url: data.url,
+        note: data.note,
+        user: { connect: { id: userId } }
+      }
+    });
     revalidatePath("/finance");
     revalidatePath("/subscriptions");
     return true;
@@ -50,12 +68,23 @@ export async function addSubscription(data: Omit<Subscription, "id" | "userId">)
 export async function updateSubscription(id: string, data: Partial<Omit<Subscription, "id" | "userId">>): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    const result = await subscriptionRepo.update(id, userId, data);
-    if (result) {
-      revalidatePath("/finance");
-      revalidatePath("/subscriptions");
-    }
-    return result;
+    await prisma.subscription.update({
+      where: { id, userId },
+      data: {
+        name: data.name,
+        price: data.price,
+        cycle: data.cycle ? data.cycle.toUpperCase() as any : undefined,
+        nextBillingDate: data.nextBillingDate ? new Date(data.nextBillingDate) : undefined,
+        lastPaidDate: data.lastPaidDate ? new Date(data.lastPaidDate) : undefined,
+        lastTransactionId: data.lastTransactionId,
+        url: data.url,
+        note: data.note,
+      }
+    });
+
+    revalidatePath("/finance");
+    revalidatePath("/subscriptions");
+    return true;
   } catch (error) {
     console.error("Update subscription error:", error);
     return false;
@@ -65,12 +94,12 @@ export async function updateSubscription(id: string, data: Partial<Omit<Subscrip
 export async function deleteSubscription(id: string): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    const result = await subscriptionRepo.delete(id, userId);
-    if (result) {
-      revalidatePath("/finance");
-      revalidatePath("/subscriptions");
-    }
-    return result;
+    await prisma.subscription.delete({
+      where: { id, userId }
+    });
+    revalidatePath("/finance");
+    revalidatePath("/subscriptions");
+    return true;
   } catch (error) {
     console.error("Delete subscription error:", error);
     return false;
@@ -116,7 +145,7 @@ export async function getYearlySubscriptionCost(): Promise<{ dailyTotal: number;
 export async function markSubscriptionAsPaid(subId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getCurrentUser();
-    const sub = await subscriptionRepo.findById(subId, userId);
+    const sub = await prisma.subscription.findUnique({ where: { id: subId, userId }});
     if (!sub) return { success: false, error: "Subscription not found" };
 
     const wallets = await getWallets();
@@ -142,7 +171,7 @@ export async function markSubscriptionAsPaid(subId: string): Promise<{ success: 
 
     const txResult = await addTransaction({
       date: new Date().toISOString(),
-      amount: sub.price,
+      amount: sub.price.toNumber(),
       type: "expense",
       categoryId: subCategory.id,
       walletId: targetWalletId,
@@ -153,14 +182,16 @@ export async function markSubscriptionAsPaid(subId: string): Promise<{ success: 
       return { success: false, error: "Failed to create transaction" };
     }
 
-    const updated = await subscriptionRepo.update(sub.id, userId, { 
-      lastPaidDate: new Date().toISOString(),
-      lastTransactionId: txResult.transactionId
+    await prisma.subscription.update({
+      where: { id: sub.id, userId },
+      data: {
+        lastPaidDate: new Date(),
+        lastTransactionId: txResult.transactionId
+      }
     });
-    if (updated) {
-      revalidatePath("/finance");
-      revalidatePath("/subscriptions");
-    }
+
+    revalidatePath("/finance");
+    revalidatePath("/subscriptions");
 
     return { success: true };
   } catch (err) {
@@ -172,22 +203,23 @@ export async function markSubscriptionAsPaid(subId: string): Promise<{ success: 
 export async function unmarkSubscriptionAsPaid(subId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getCurrentUser();
-    const sub = await subscriptionRepo.findById(subId, userId);
+    const sub = await prisma.subscription.findUnique({ where: { id: subId, userId }});
     if (!sub) return { success: false, error: "Subscription not found" };
 
     if (sub.lastTransactionId) {
       await deleteTransaction(sub.lastTransactionId);
     }
 
-    const updated = await subscriptionRepo.update(sub.id, userId, { 
-      lastPaidDate: null,
-      lastTransactionId: null
+    await prisma.subscription.update({
+      where: { id: sub.id, userId },
+      data: {
+        lastPaidDate: null,
+        lastTransactionId: null
+      }
     });
     
-    if (updated) {
-      revalidatePath("/finance");
-      revalidatePath("/subscriptions");
-    }
+    revalidatePath("/finance");
+    revalidatePath("/subscriptions");
 
     return { success: true };
   } catch (err) {

@@ -1,145 +1,191 @@
 "use server";
 
-import fs from "fs/promises";
-import path from "path";
-import { Task, Habit } from "@/types";
+import { Task, Habit, TaskPriority } from "@/types";
 import { revalidatePath } from "next/cache";
-
-const DATA_DIR = path.join(process.cwd(), "..", "data");
-const TASKS_FILE = path.join(DATA_DIR, "tasks.json");
-const HABITS_FILE = path.join(DATA_DIR, "habits.json");
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 // --- Helpers ---
-async function ensureFile(filePath: string, defaultData: any) {
-  try {
-    await fs.access(filePath);
-  } catch {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(filePath, JSON.stringify(defaultData), "utf-8");
+async function getCurrentUser() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    throw new Error("Unauthorized");
   }
+  return session.user.id;
 }
 
-async function readTasks(): Promise<Task[]> {
-  await ensureFile(TASKS_FILE, []);
-  const data = await fs.readFile(TASKS_FILE, "utf-8");
-  return JSON.parse(data);
-}
-
-async function writeTasks(data: Task[]) {
-  await ensureFile(TASKS_FILE, []);
-  await fs.writeFile(TASKS_FILE, JSON.stringify(data, null, 2), "utf-8");
-}
-
-async function readHabits(): Promise<Habit[]> {
-  await ensureFile(HABITS_FILE, []);
-  const data = await fs.readFile(HABITS_FILE, "utf-8");
-  return JSON.parse(data);
-}
-
-async function writeHabits(data: Habit[]) {
-  await ensureFile(HABITS_FILE, []);
-  await fs.writeFile(HABITS_FILE, JSON.stringify(data, null, 2), "utf-8");
+function mapTask(t: any): Task {
+  return {
+    ...t,
+    date: t.date, // Prisma schema defines date as a String (YYYY-MM-DD)
+    priority: t.priority.toLowerCase() as TaskPriority
+  };
 }
 
 // --- Tasks ---
 export async function getTasks(date: string): Promise<Task[]> {
-  const tasks = await readTasks();
-  return tasks.filter(t => t.date === date);
+  try {
+    const userId = await getCurrentUser();
+    
+    const tasks = await prisma.task.findMany({
+      where: { 
+        userId,
+        date: date
+      }
+    });
+
+    return tasks.map(mapTask);
+  } catch (error) {
+    console.error("getTasks error:", error);
+    return [];
+  }
 }
 
 export async function addTask(title: string, date: string, priority: "low"|"medium"|"high" = "medium") {
-  const tasks = await readTasks();
-  const newTask: Task = {
-    id: crypto.randomUUID(),
-    title,
-    date,
-    completed: false,
-    priority,
-    userId: "user-1"
-  };
-  tasks.push(newTask);
-  await writeTasks(tasks);
-  revalidatePath("/productivity");
-  return { success: true };
+  try {
+    const userId = await getCurrentUser();
+    await prisma.task.create({
+      data: {
+        title,
+        date: date, // Passed as exact string YYYY-MM-DD to match schema layout
+        priority: priority.toUpperCase() as any,
+        user: { connect: { id: userId } }
+      }
+    });
+
+    revalidatePath("/productivity");
+    return { success: true };
+  } catch (error) {
+    console.error("addTask error:", error);
+    return { success: false };
+  }
 }
 
 export async function toggleTask(id: string) {
-  const tasks = await readTasks();
-  const task = tasks.find(t => t.id === id);
-  if (task) {
-    task.completed = !task.completed;
-    await writeTasks(tasks);
-    revalidatePath("/productivity");
+  try {
+    const userId = await getCurrentUser();
+    const task = await prisma.task.findUnique({ where: { id, userId } });
+    
+    if (task) {
+      await prisma.task.update({
+        where: { id },
+        data: { completed: !task.completed }
+      });
+      revalidatePath("/productivity");
+    }
+  } catch (error) {
+    console.error("toggleTask error:", error);
   }
 }
 
 export async function deleteTask(id: string) {
-  const tasks = await readTasks();
-  const filtered = tasks.filter(t => t.id !== id);
-  await writeTasks(filtered);
-  revalidatePath("/productivity");
+  try {
+    const userId = await getCurrentUser();
+    await prisma.task.delete({
+      where: { id, userId }
+    });
+    revalidatePath("/productivity");
+  } catch (error) {
+    console.error("deleteTask error:", error);
+  }
 }
 
 export async function migrateIncompleteTasks(currentDate: string) {
-    const tasks = await readTasks();
-    const nextDate = new Date(currentDate);
-    nextDate.setDate(nextDate.getDate() + 1);
-    const nextDateStr = nextDate.toISOString().split('T')[0];
+  try {
+    const userId = await getCurrentUser();
+    
+    // Calculate the next date as "YYYY-MM-DD" string
+    const nextDT = new Date(currentDate);
+    nextDT.setDate(nextDT.getDate() + 1);
+    const nextDateStr = nextDT.toISOString().split('T')[0];
 
-    let changed = false;
-    tasks.forEach(t => {
-        if (t.date === currentDate && !t.completed) {
-            t.date = nextDateStr;
-            changed = true;
-        }
+    const updated = await prisma.task.updateMany({
+      where: {
+        userId,
+        date: currentDate,
+        completed: false
+      },
+      data: {
+        date: nextDateStr
+      }
     });
 
-    if (changed) {
-        await writeTasks(tasks);
-        revalidatePath("/productivity");
+    if (updated.count > 0) {
+      revalidatePath("/productivity");
     }
+  } catch (error) {
+    console.error("migrateIncompleteTasks error:", error);
+  }
 }
 
 // --- Habits ---
 export async function getHabits(): Promise<Habit[]> {
-  return await readHabits();
+  try {
+    const userId = await getCurrentUser();
+    const habits = await prisma.habit.findMany({
+      where: { userId }
+    });
+    return habits as Habit[];
+  } catch (error) {
+    console.error("getHabits error:", error);
+    return [];
+  }
 }
 
 export async function addHabit(name: string) {
-  const habits = await readHabits();
-  const newHabit: Habit = {
-    id: crypto.randomUUID(),
-    name,
-    streak: 0,
-    completedDates: [],
-    userId: "user-1"
-  };
-  habits.push(newHabit);
-  await writeHabits(habits);
-  revalidatePath("/productivity");
-  return { success: true };
+  try {
+    const userId = await getCurrentUser();
+    await prisma.habit.create({
+      data: {
+        name,
+        user: { connect: { id: userId } }
+      }
+    });
+
+    revalidatePath("/productivity");
+    return { success: true };
+  } catch (error) {
+    console.error("addHabit error:", error);
+    return { success: false };
+  }
 }
 
 export async function toggleHabit(id: string, date: string) {
-  const habits = await readHabits();
-  const habit = habits.find(h => h.id === id);
-  if (habit) {
-    const index = habit.completedDates.indexOf(date);
-    if (index > -1) {
-      habit.completedDates.splice(index, 1);
-      // Recalculate streak logic could go here
-    } else {
-      habit.completedDates.push(date);
-      // Recalculate streak logic
+  try {
+    const userId = await getCurrentUser();
+    const habit = await prisma.habit.findUnique({ where: { id, userId } });
+    
+    if (habit) {
+      const dates = [...habit.completedDates];
+      const index = dates.indexOf(date);
+      
+      if (index > -1) {
+        dates.splice(index, 1);
+      } else {
+        dates.push(date);
+      }
+
+      await prisma.habit.update({
+        where: { id },
+        data: {
+          completedDates: dates
+        }
+      });
+      revalidatePath("/productivity");
     }
-    await writeHabits(habits);
-    revalidatePath("/productivity");
+  } catch (error) {
+    console.error("toggleHabit error:", error);
   }
 }
 
 export async function deleteHabit(id: string) {
-  const habits = await readHabits();
-  const filtered = habits.filter(h => h.id !== id);
-  await writeHabits(filtered);
-  revalidatePath("/productivity");
+  try {
+    const userId = await getCurrentUser();
+    await prisma.habit.delete({
+      where: { id, userId }
+    });
+    revalidatePath("/productivity");
+  } catch (error) {
+    console.error("deleteHabit error:", error);
+  }
 }

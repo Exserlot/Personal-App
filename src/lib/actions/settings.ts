@@ -1,77 +1,83 @@
 "use server";
 
-import fs from "fs/promises";
 import path from "path";
+import fs from "fs/promises";
 import { UserSettings } from "@/types";
 import { revalidatePath } from "next/cache";
+import { randomUUID } from "crypto";
+import { prisma } from "@/lib/prisma";
 
-const DATA_DIR = path.join(process.cwd(), "..", "data");
-const FILE_PATH = path.join(DATA_DIR, "settings.json");
-
-async function ensureFile() {
+export async function getSettings(userId: string): Promise<UserSettings> {
   try {
-    await fs.access(FILE_PATH);
-  } catch {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(FILE_PATH, "[]", "utf-8");
-  }
-}
+    const settings = await prisma.userSettings.findUnique({
+      where: { userId }
+    });
+    
+    if (!settings) {
+      const newSettings = await prisma.userSettings.create({
+        data: {
+          theme: "SYSTEM",
+          currency: "THB",
+          user: { connect: { id: userId } }
+        }
+      });
+      return {
+        userId: newSettings.userId,
+        theme: newSettings.theme.toLowerCase() as any,
+        currency: newSettings.currency,
+        defaultWalletId: newSettings.defaultWalletId || undefined
+      };
+    }
 
-async function readData(): Promise<UserSettings[]> {
-  await ensureFile();
-  const data = await fs.readFile(FILE_PATH, "utf-8");
-  return JSON.parse(data);
-}
-
-async function writeData(data: UserSettings[]) {
-  await ensureFile();
-  await fs.writeFile(FILE_PATH, JSON.stringify(data, null, 2), "utf-8");
-}
-
-export async function getSettings(userId: string = "user-1"): Promise<UserSettings> {
-  const settings = await readData();
-  let userSettings = settings.find(s => s.userId === userId);
-  
-  if (!userSettings) {
-    userSettings = {
-      userId,
-      theme: "system",
-      currency: "THB"
+    return {
+      userId: settings.userId,
+      theme: settings.theme.toLowerCase() as any,
+      currency: settings.currency,
+      defaultWalletId: settings.defaultWalletId || undefined
     };
-    settings.push(userSettings);
-    await writeData(settings);
+  } catch (error) {
+    console.error("getSettings error:", error);
+    return { userId, theme: "system", currency: "THB" };
   }
-  
-  return userSettings;
 }
 
 export async function updateSettings(userId: string, updates: Partial<UserSettings>) {
-  const settings = await readData();
-  const index = settings.findIndex(s => s.userId === userId);
-  
-  if (index === -1) {
-    settings.push({
-      userId,
-      theme: "system",
-      currency: "THB",
-      ...updates
+  try {
+    await prisma.userSettings.upsert({
+      where: { userId },
+      create: {
+        theme: (updates.theme ? updates.theme.toUpperCase() : "SYSTEM") as any,
+        currency: updates.currency || "THB",
+        defaultWalletId: updates.defaultWalletId,
+        user: { connect: { id: userId } }
+      },
+      update: {
+        theme: updates.theme ? updates.theme.toUpperCase() as any : undefined,
+        currency: updates.currency,
+        defaultWalletId: updates.defaultWalletId
+      }
     });
-  } else {
-    settings[index] = { ...settings[index], ...updates };
+    
+    revalidatePath("/", "layout");
+    return { success: true };
+  } catch (error) {
+    console.error("updateSettings error:", error);
+    return { success: false };
   }
-  
-  await writeData(settings);
-  revalidatePath("/", "layout");
-  return { success: true };
 }
 
-import { updateUser } from "@/lib/db";
-import { randomUUID } from "crypto";
-
 export async function updateProfile(userId: string, name: string, image: string) {
-  await updateUser(userId, { name, image });
-  revalidatePath("/", "layout");
-  return { success: true };
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { name, image }
+    });
+    revalidatePath("/", "layout");
+    return { success: true };
+  } catch (error) {
+    console.error("updateProfile error:", error);
+    return { success: false };
+  }
 }
 
 export async function uploadProfileImage(formData: FormData): Promise<{ success: boolean; path?: string }> {

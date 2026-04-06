@@ -4,6 +4,7 @@ import { useState } from "react";
 import { InvestmentType } from "@/types";
 import { addInvestment } from "@/lib/actions/investments";
 import { X, Loader2, Save, TrendingUp } from "lucide-react";
+import { CustomSelect } from "@/components/ui/custom-select";
 
 interface AddInvestmentModalProps {
   isOpen: boolean;
@@ -11,11 +12,11 @@ interface AddInvestmentModalProps {
   userId: string;
 }
 
-const TYPES: { value: InvestmentType; label: string }[] = [
-  { value: "stock", label: "Stock/ETF" },
-  { value: "crypto", label: "Crypto" },
-  { value: "fund", label: "Mutual Fund" },
-  { value: "other", label: "Other" },
+const TYPES: { id: InvestmentType; label: string }[] = [
+  { id: "stock", label: "Stock/ETF" },
+  { id: "crypto", label: "Crypto" },
+  { id: "fund", label: "Mutual Fund" },
+  { id: "other", label: "Other" },
 ];
 
 export function AddInvestmentModal({ isOpen, onClose, userId }: AddInvestmentModalProps) {
@@ -89,15 +90,11 @@ export function AddInvestmentModal({ isOpen, onClose, userId }: AddInvestmentMod
             {/* Type */}
             <div className="space-y-1.5">
                <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Asset Type</label>
-               <select
+               <CustomSelect
+                 options={TYPES}
                  value={type}
-                 onChange={(e) => setType(e.target.value as InvestmentType)}
-                 className="w-full rounded-xl border border-input bg-secondary/50 px-4 py-3 text-sm font-medium focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all outline-none appearance-none"
-               >
-                 {TYPES.map(t => (
-                   <option key={t.value} value={t.value}>{t.label}</option>
-                 ))}
-               </select>
+                 onChange={(val) => setType(val as InvestmentType)}
+               />
             </div>
 
             {/* Amount Invested & Current Value */}

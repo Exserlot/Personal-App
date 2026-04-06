@@ -1,13 +1,9 @@
 "use server";
 
-import { InvestmentAsset } from "@/types";
+import { InvestmentAsset, InvestmentType } from "@/types";
 import { revalidatePath } from "next/cache";
-import { randomUUID } from "crypto";
 import { auth } from "@/lib/auth";
-import { Repository } from "@/lib/repository";
-
-// Repositories
-const investmentRepo = new Repository<InvestmentAsset>("investment_portfolio.json");
+import { prisma } from "@/lib/prisma";
 
 // Helper to get current user
 async function getCurrentUser() {
@@ -18,11 +14,26 @@ async function getCurrentUser() {
   return session.user.id;
 }
 
+function mapInvestment(inv: any): InvestmentAsset {
+  return {
+    ...inv,
+    type: inv.type.toLowerCase() as InvestmentType,
+    amountInvested: inv.amountInvested.toNumber(),
+    currentValue: inv.currentValue.toNumber(),
+    updatedAt: inv.updatedAt.toISOString()
+  };
+}
+
 export async function getInvestments(): Promise<InvestmentAsset[]> {
   try {
     const userId = await getCurrentUser();
-    return await investmentRepo.getByUserId(userId);
-  } catch {
+    const invs = await prisma.investmentAsset.findMany({
+      where: { userId },
+      orderBy: { updatedAt: "desc" }
+    });
+    return invs.map(mapInvestment);
+  } catch (error) {
+    console.error("getInvestments error:", error);
     return [];
   }
 }
@@ -30,13 +41,17 @@ export async function getInvestments(): Promise<InvestmentAsset[]> {
 export async function addInvestment(data: Omit<InvestmentAsset, "id" | "userId" | "updatedAt">): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    const newInvestment: InvestmentAsset = {
-      ...data,
-      id: randomUUID(),
-      userId,
-      updatedAt: new Date().toISOString(),
-    };
-    await investmentRepo.add(newInvestment);
+    await prisma.investmentAsset.create({
+      data: {
+        name: data.name,
+        type: data.type.toUpperCase() as any,
+        amountInvested: data.amountInvested,
+        currentValue: data.currentValue,
+        note: data.note,
+        user: { connect: { id: userId } }
+      }
+    });
+
     revalidatePath("/finance");
     return true;
   } catch (error) {
@@ -48,13 +63,19 @@ export async function addInvestment(data: Omit<InvestmentAsset, "id" | "userId" 
 export async function updateInvestment(id: string, data: Partial<Omit<InvestmentAsset, "id" | "userId" | "updatedAt">>): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    const updates = {
-      ...data,
-      updatedAt: new Date().toISOString(),
-    };
-    const result = await investmentRepo.update(id, userId, updates);
-    if (result) revalidatePath("/finance");
-    return result;
+    await prisma.investmentAsset.update({
+      where: { id, userId },
+      data: {
+        name: data.name,
+        type: data.type ? data.type.toUpperCase() as any : undefined,
+        amountInvested: data.amountInvested,
+        currentValue: data.currentValue,
+        note: data.note,
+      }
+    });
+
+    revalidatePath("/finance");
+    return true;
   } catch (error) {
     console.error("Update investment error:", error);
     return false;
@@ -64,9 +85,12 @@ export async function updateInvestment(id: string, data: Partial<Omit<Investment
 export async function deleteInvestment(id: string): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    const result = await investmentRepo.delete(id, userId);
-    if (result) revalidatePath("/finance");
-    return result;
+    await prisma.investmentAsset.delete({
+      where: { id, userId }
+    });
+
+    revalidatePath("/finance");
+    return true;
   } catch (error) {
     console.error("Delete investment error:", error);
     return false;
@@ -94,7 +118,8 @@ export async function getInvestmentSummary(): Promise<{ totalInvested: number; t
       profitLoss,
       profitLossPercentage,
     };
-  } catch {
+  } catch (error) {
+    console.error("getInvestmentSummary error:", error);
     return {
       totalInvested: 0,
       totalCurrentValue: 0,

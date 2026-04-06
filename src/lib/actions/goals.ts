@@ -2,12 +2,8 @@
 
 import { YearlyGoal, GoalStatus } from "@/types";
 import { revalidatePath } from "next/cache";
-import { randomUUID } from "crypto";
 import { auth } from "@/lib/auth";
-import { Repository } from "@/lib/repository";
-
-// Repositories
-const goalRepo = new Repository<YearlyGoal>("goals.json");
+import { prisma } from "@/lib/prisma";
 
 // Helper to get current user
 async function getCurrentUser() {
@@ -18,11 +14,24 @@ async function getCurrentUser() {
   return session.user.id;
 }
 
+function mapGoal(g: any): YearlyGoal {
+  return {
+    ...g,
+    status: g.status.toLowerCase() as GoalStatus,
+    createdAt: g.createdAt.toISOString()
+  };
+}
+
 export async function getGoals(): Promise<YearlyGoal[]> {
   try {
     const userId = await getCurrentUser();
-    return await goalRepo.getByUserId(userId);
-  } catch {
+    const goals = await prisma.yearlyGoal.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" }
+    });
+    return goals.map(mapGoal);
+  } catch (error) {
+    console.error("getGoals error:", error);
     return [];
   }
 }
@@ -30,9 +39,13 @@ export async function getGoals(): Promise<YearlyGoal[]> {
 export async function getGoalsByYear(year: number): Promise<YearlyGoal[]> {
   try {
     const userId = await getCurrentUser();
-    const goals = await goalRepo.getByUserId(userId);
-    return goals.filter(g => g.year === year);
-  } catch {
+    const goals = await prisma.yearlyGoal.findMany({
+      where: { userId, year },
+      orderBy: { createdAt: "desc" }
+    });
+    return goals.map(mapGoal);
+  } catch (error) {
+    console.error("getGoalsByYear error:", error);
     return [];
   }
 }
@@ -40,14 +53,16 @@ export async function getGoalsByYear(year: number): Promise<YearlyGoal[]> {
 export async function addGoal(data: Omit<YearlyGoal, "id" | "userId" | "createdAt" | "status">): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    const newGoal: YearlyGoal = {
-      ...data,
-      id: randomUUID(),
-      status: "not_started" as GoalStatus,
-      userId,
-      createdAt: new Date().toISOString(),
-    };
-    await goalRepo.add(newGoal);
+    await prisma.yearlyGoal.create({
+      data: {
+        title: data.title,
+        year: data.year,
+        description: data.description,
+        status: "NOT_STARTED",
+        user: { connect: { id: userId } }
+      }
+    });
+
     revalidatePath("/productivity");
     return true;
   } catch (error) {
@@ -59,9 +74,18 @@ export async function addGoal(data: Omit<YearlyGoal, "id" | "userId" | "createdA
 export async function updateGoal(id: string, data: Partial<Omit<YearlyGoal, "id" | "userId" | "createdAt">>): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    const result = await goalRepo.update(id, userId, data);
-    if (result) revalidatePath("/productivity");
-    return result;
+    await prisma.yearlyGoal.update({
+      where: { id, userId },
+      data: {
+        title: data.title,
+        year: data.year,
+        description: data.description,
+        status: data.status ? data.status.toUpperCase() as any : undefined
+      }
+    });
+    
+    revalidatePath("/productivity");
+    return true;
   } catch (error) {
     console.error("Update goal error:", error);
     return false;
@@ -71,9 +95,12 @@ export async function updateGoal(id: string, data: Partial<Omit<YearlyGoal, "id"
 export async function deleteGoal(id: string): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    const result = await goalRepo.delete(id, userId);
-    if (result) revalidatePath("/productivity");
-    return result;
+    await prisma.yearlyGoal.delete({
+      where: { id, userId }
+    });
+    
+    revalidatePath("/productivity");
+    return true;
   } catch (error) {
     console.error("Delete goal error:", error);
     return false;

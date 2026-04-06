@@ -14,20 +14,14 @@ import { randomUUID } from "crypto";
 import { extractQRData } from "../qr-parser";
 import jsQR from "jsqr";
 import { createCanvas, loadImage } from "canvas";
-import { writeFile, unlink } from "fs/promises";
+import { writeFile, unlink, mkdir } from "fs/promises";
 import { join } from "path";
 import { auth } from "@/lib/auth";
-import { Repository } from "@/lib/repository";
+import { prisma } from "@/lib/prisma";
 
 const SLIPS_DIR = join(process.cwd(), "public", "slips");
+const ICONS_DIR = join(process.cwd(), "public", "icons");
 
-// Repositories
-const walletRepo = new Repository<Wallet>("wallets.json");
-const transactionRepo = new Repository<Transaction>("transactions.json");
-const categoryRepo = new Repository<Category>("categories.json");
-const slipRepo = new Repository<PaymentSlip>("slips.json");
-
-// Helper to get current user
 async function getCurrentUser() {
   const session = await auth();
   if (!session?.user?.id) {
@@ -36,14 +30,59 @@ async function getCurrentUser() {
   return session.user.id;
 }
 
+// Helpers to map Prisma to local types
+function mapWallet(w: any): Wallet {
+  return {
+    ...w,
+    type: w.type.toLowerCase() as WalletType,
+    balance: w.balance.toNumber(),
+  };
+}
+
+function mapTransaction(t: any): Transaction {
+  return {
+    ...t,
+    amount: t.amount.toNumber(),
+    date: t.date.toISOString(),
+  };
+}
+
+function mapSlip(s: any): PaymentSlip {
+  return {
+    ...s,
+    uploadDate: s.uploadDate.toISOString(),
+    qrData: s.qrData ? (s.qrData as any) : undefined,
+  };
+}
+
+// Ensure system adjustment category exists to fulfill foreign keys
+async function ensureAdjustmentCategory(userId: string, txClient: any = prisma): Promise<string> {
+  let cat = await txClient.category.findFirst({
+    where: { userId, type: "adjustment", name: "System Adjustment" }
+  });
+  if (!cat) {
+    cat = await txClient.category.create({
+      data: {
+        name: "System Adjustment",
+        type: "adjustment",
+        color: "#6b7280",
+        icon: "settings",
+        user: { connect: { id: userId } }
+      }
+    });
+  }
+  return cat.id;
+}
+
 // --- Wallets ---
-const ICONS_DIR = join(process.cwd(), "public", "icons");
 
 export async function getWallets(): Promise<Wallet[]> {
   try {
     const userId = await getCurrentUser();
-    return await walletRepo.getByUserId(userId);
-  } catch {
+    const wallets = await prisma.wallet.findMany({ where: { userId } });
+    return wallets.map(mapWallet);
+  } catch (error) {
+    console.error("getWallets Error:", error);
     return [];
   }
 }
@@ -51,16 +90,21 @@ export async function getWallets(): Promise<Wallet[]> {
 export async function addWallet(data: Omit<Wallet, "id" | "userId">): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    const newWallet: Wallet = {
-      ...data,
-      id: randomUUID(),
-      userId,
-    };
-    await walletRepo.add(newWallet);
+    await prisma.wallet.create({
+      data: {
+        name: data.name,
+        type: data.type.toUpperCase() as any,
+        balance: data.balance,
+        color: data.color,
+        icon: data.icon,
+        user: { connect: { id: userId } }
+      }
+    });
+
     revalidatePath("/finance");
     return true;
   } catch (error) {
-    console.error(error);
+    console.error("addWallet Error:", error);
     return false;
   }
 }
@@ -71,35 +115,47 @@ export async function updateWallet(
 ): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    const wallet = await walletRepo.findById(id, userId);
+    const wallet = await prisma.wallet.findUnique({ where: { id } });
     
-    if (!wallet) return false;
+    if (!wallet || wallet.userId !== userId) return false;
 
-    // Check for balance change
-    if (data.balance !== undefined && data.balance !== wallet.balance) {
-      const diff = data.balance - wallet.balance;
-      const isIncrease = diff > 0;
-      
-      // Create adjustment transaction
-      const adjustmentTx: Transaction = {
-        id: randomUUID(),
-        date: new Date().toISOString(),
-        amount: Math.abs(diff),
-        type: isIncrease ? "income" : "expense",
-        walletId: wallet.id,
-        categoryId: "", // No specific category
-        note: "Manual Balance Adjustment",
-        userId
-      };
+    await prisma.$transaction(async (tx) => {
+      // Check for balance change
+      if (data.balance !== undefined && data.balance !== wallet.balance.toNumber()) {
+        const diff = data.balance - wallet.balance.toNumber();
+        const isIncrease = diff > 0;
+        
+        const adjCatId = await ensureAdjustmentCategory(userId, tx);
 
-      await transactionRepo.add(adjustmentTx);
-    }
+        await tx.transaction.create({
+          data: {
+            date: new Date(),
+            amount: Math.abs(diff),
+            type: isIncrease ? "income" : "expense",
+            wallet: { connect: { id: wallet.id } },
+            category: { connect: { id: adjCatId } },
+            note: "Manual Balance Adjustment",
+            user: { connect: { id: userId } }
+          }
+        });
+      }
 
-    await walletRepo.update(id, userId, data);
+      await tx.wallet.update({
+        where: { id },
+        data: {
+          name: data.name,
+          type: data.type ? data.type.toUpperCase() as any : undefined,
+          balance: data.balance,
+          color: data.color,
+          icon: data.icon,
+        }
+      });
+    });
+
     revalidatePath("/finance");
     return true;
   } catch (error) {
-    console.error(error);
+    console.error("updateWallet Error:", error);
     return false;
   }
 }
@@ -117,9 +173,6 @@ export async function uploadWalletIcon(formData: FormData): Promise<{ success: b
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
-    // Ensure directory exists (node 10+, separate step if needed but usually public exists)
-    // mkdir is needed if 'icons' folder doesn't exist.
-    const { mkdir } = require("fs/promises");
     try {
       await mkdir(ICONS_DIR, { recursive: true });
     } catch {}
@@ -127,7 +180,7 @@ export async function uploadWalletIcon(formData: FormData): Promise<{ success: b
     await writeFile(filePath, buffer);
     return { success: true, path: `/icons/${fileName}` };
   } catch (error) {
-    console.error("Upload icon error:", error);
+    console.error("uploadWalletIcon Error:", error);
     return { success: false };
   }
 }
@@ -135,13 +188,13 @@ export async function uploadWalletIcon(formData: FormData): Promise<{ success: b
 export async function deleteWallet(id: string): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    // Optional: check valid usage or delete transactions? 
-    // For now simple delete.
-    await walletRepo.delete(id, userId);
+    await prisma.wallet.delete({
+      where: { id, userId }
+    });
     revalidatePath("/finance");
     return true;
   } catch (error) {
-    console.error(error);
+    console.error("deleteWallet Error:", error);
     return false;
   }
 }
@@ -151,8 +204,10 @@ export async function deleteWallet(id: string): Promise<boolean> {
 export async function getCategories(): Promise<Category[]> {
   try {
     const userId = await getCurrentUser();
-    return await categoryRepo.getByUserId(userId);
-  } catch {
+    const categories = await prisma.category.findMany({ where: { userId } });
+    return categories as Category[];
+  } catch (error) {
+    console.error("getCategories Error:", error);
     return [];
   }
 }
@@ -160,19 +215,20 @@ export async function getCategories(): Promise<Category[]> {
 export async function addCategory(name: string, type: TransactionType, color: string, icon: string): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    const newCategory: Category = {
-      id: randomUUID(),
-      name,
-      type,
-      color,
-      icon, 
-      userId,
-    };
-    await categoryRepo.add(newCategory);
+    await prisma.category.create({
+      data: {
+        name,
+        type: type as any,
+        color,
+        icon,
+        user: { connect: { id: userId } }
+      }
+    });
+
     revalidatePath("/finance");
     return true;
   } catch (error) {
-    console.error(error);
+    console.error("addCategory Error:", error);
     return false;
   }
 }
@@ -182,9 +238,18 @@ export async function updateCategory(data: Category): Promise<boolean> {
     const userId = await getCurrentUser();
     if (data.userId !== userId) return false;
     
-    return await categoryRepo.update(data.id, userId, data);
+    await prisma.category.update({
+      where: { id: data.id, userId },
+      data: {
+        name: data.name,
+        type: data.type as any,
+        color: data.color,
+        icon: data.icon,
+      }
+    });
+    return true;
   } catch (error) {
-    console.error(error);
+    console.error("updateCategory Error:", error);
     return false;
   }
 }
@@ -192,23 +257,23 @@ export async function updateCategory(data: Category): Promise<boolean> {
 export async function deleteCategory(id: string): Promise<{ success: boolean; error?: string }> {
   try {
     const userId = await getCurrentUser();
-    const categories = await categoryRepo.getByUserId(userId);
-    const transactions = await transactionRepo.getByUserId(userId);
+    
+    const count = await prisma.transaction.count({
+      where: { categoryId: id, userId }
+    });
 
-    // Check usage
-    const isUsed = transactions.some(t => t.categoryId === id);
-    if (isUsed) {
+    if (count > 0) {
       return { success: false, error: "Category is used in transactions" };
     }
 
-    const exists = categories.some(c => c.id === id);
-    if (!exists) return { success: false, error: "Category not found" };
-
-    await categoryRepo.delete(id, userId);
+    await prisma.category.delete({
+      where: { id, userId }
+    });
+    
     revalidatePath("/finance");
     return { success: true };
   } catch (error) {
-    console.error(error);
+    console.error("deleteCategory Error:", error);
     return { success: false, error: "Failed to delete category" };
   }
 }
@@ -218,8 +283,13 @@ export async function deleteCategory(id: string): Promise<{ success: boolean; er
 export async function getTransactions(): Promise<Transaction[]> {
   try {
     const userId = await getCurrentUser();
-    return await transactionRepo.getByUserId(userId);
-  } catch {
+    const txs = await prisma.transaction.findMany({ 
+      where: { userId },
+      orderBy: { date: "desc" }
+    });
+    return txs.map(mapTransaction);
+  } catch(error) {
+    console.error("getTransactions Error:", error);
     return [];
   }
 }
@@ -227,44 +297,60 @@ export async function getTransactions(): Promise<Transaction[]> {
 export async function addTransaction(data: Omit<Transaction, "id" | "userId">): Promise<{ success: boolean; transactionId?: string }> {
   try {
     const userId = await getCurrentUser();
-    const wallets = await walletRepo.getByUserId(userId);
+    let transactionId = "";
 
-    const newTransaction: Transaction = {
-      ...data,
-      id: randomUUID(),
-      userId,
-    };
+    await prisma.$transaction(async (tx) => {
+      // Create the transaction
+      const newTx = await tx.transaction.create({
+        data: {
+          date: new Date(data.date),
+          amount: data.amount,
+          type: data.type as any,
+          note: data.note,
+          category: { connect: { id: data.categoryId } },
+          wallet: { connect: { id: data.walletId } },
+          targetWallet: data.targetWalletId ? { connect: { id: data.targetWalletId } } : undefined,
+          slipId: data.slipId,
+          user: { connect: { id: userId } }
+        }
+      });
+      transactionId = newTx.id;
 
-    // Update Wallet Balance
-    const wallet = wallets.find(w => w.id === data.walletId);
-    if (!wallet) return { success: false };
-
-    if (data.type === "income") {
-      wallet.balance += data.amount;
-    } else if (data.type === "expense") {
-      wallet.balance -= data.amount;
-    } else if (data.type === "transfer" && data.targetWalletId) {
-      wallet.balance -= data.amount;
-      const targetWallet = wallets.find(w => w.id === data.targetWalletId);
-      if (targetWallet) {
-        targetWallet.balance += data.amount;
-        await walletRepo.update(targetWallet.id, userId, { balance: targetWallet.balance });
+      // Update Wallet Balance
+      if (data.type === "income") {
+        await tx.wallet.update({
+          where: { id: data.walletId },
+          data: { balance: { increment: data.amount } }
+        });
+      } else if (data.type === "expense") {
+        await tx.wallet.update({
+          where: { id: data.walletId },
+          data: { balance: { decrement: data.amount } }
+        });
+      } else if (data.type === "transfer" && data.targetWalletId) {
+        await tx.wallet.update({
+          where: { id: data.walletId },
+          data: { balance: { decrement: data.amount } }
+        });
+        await tx.wallet.update({
+          where: { id: data.targetWalletId },
+          data: { balance: { increment: data.amount } }
+        });
       }
-    }
 
-    // Save changes
-    await transactionRepo.add(newTransaction);
-    await walletRepo.update(wallet.id, userId, { balance: wallet.balance });
-    
-    // If slip is linked, update the slip record
-    if (data.slipId) {
-      await linkSlipToTransaction(data.slipId, newTransaction.id);
-    }
+      // Link slip
+      if (data.slipId) {
+        await tx.paymentSlip.update({
+          where: { id: data.slipId },
+          data: { linkedTransactionId: newTx.id }
+        });
+      }
+    });
     
     revalidatePath("/finance");
-    return { success: true, transactionId: newTransaction.id };
+    return { success: true, transactionId };
   } catch (error) {
-    console.error(error);
+    console.error("addTransaction Error:", error);
     return { success: false };
   }
 }
@@ -272,35 +358,47 @@ export async function addTransaction(data: Omit<Transaction, "id" | "userId">): 
 export async function deleteTransaction(id: string): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    const transactions = await transactionRepo.getByUserId(userId);
-    const wallets = await walletRepo.getByUserId(userId);
+    
+    await prisma.$transaction(async (txClient) => {
+      const tx = await txClient.transaction.findUnique({ where: { id, userId }});
+      if (!tx) throw new Error("Transaction not found");
 
-    const tx = transactions.find(t => t.id === id);
-    if (!tx) return false;
-
-    // Revert balance
-    const wallet = wallets.find(w => w.id === tx.walletId);
-    if (wallet) {
+      // Revert balance
       if (tx.type === "income") {
-        wallet.balance -= tx.amount;
+        await txClient.wallet.update({
+          where: { id: tx.walletId },
+          data: { balance: { decrement: tx.amount } }
+        });
       } else if (tx.type === "expense") {
-        wallet.balance += tx.amount;
+        await txClient.wallet.update({
+          where: { id: tx.walletId },
+          data: { balance: { increment: tx.amount } }
+        });
       } else if (tx.type === "transfer" && tx.targetWalletId) {
-        wallet.balance += tx.amount;
-        const targetWallet = wallets.find(w => w.id === tx.targetWalletId);
-        if (targetWallet) {
-          targetWallet.balance -= tx.amount;
-          await walletRepo.update(targetWallet.id, userId, { balance: targetWallet.balance });
-        }
+        await txClient.wallet.update({
+          where: { id: tx.walletId },
+          data: { balance: { increment: tx.amount } }
+        });
+        await txClient.wallet.update({
+          where: { id: tx.targetWalletId },
+          data: { balance: { decrement: tx.amount } }
+        });
       }
-      await walletRepo.update(wallet.id, userId, { balance: wallet.balance });
-    }
 
-    await transactionRepo.delete(id, userId);
+      await txClient.transaction.delete({ where: { id }});
+      
+      if (tx.slipId) {
+        await txClient.paymentSlip.update({
+          where: { id: tx.slipId },
+          data: { linkedTransactionId: null }
+        });
+      }
+    });
+
     revalidatePath("/finance");
     return true;
   } catch (error) {
-    console.error(error);
+    console.error("deleteTransaction error:", error);
     return false;
   }
 }
@@ -310,69 +408,73 @@ export async function updateTransaction(data: Transaction): Promise<boolean> {
     const userId = await getCurrentUser();
     if (data.userId !== userId) return false;
 
-    const transactions = await transactionRepo.getByUserId(userId);
-    const wallets = await walletRepo.getByUserId(userId);
+    await prisma.$transaction(async (txClient) => {
+      const oldTx = await txClient.transaction.findUnique({ where: { id: data.id, userId }});
+      if (!oldTx) throw new Error("Transaction not found");
 
-    const oldTx = transactions.find(t => t.id === data.id);
-    if (!oldTx) return false;
-
-    // 1. Revert Old Transaction Effect
-    const oldWallet = wallets.find(w => w.id === oldTx.walletId);
-    if (oldWallet) {
+      // 1. Revert Old Transaction Effect
       if (oldTx.type === "income") {
-        oldWallet.balance -= oldTx.amount;
+        await txClient.wallet.update({
+          where: { id: oldTx.walletId },
+          data: { balance: { decrement: oldTx.amount } }
+        });
       } else if (oldTx.type === "expense") {
-        oldWallet.balance += oldTx.amount;
+        await txClient.wallet.update({
+          where: { id: oldTx.walletId },
+          data: { balance: { increment: oldTx.amount } }
+        });
       } else if (oldTx.type === "transfer" && oldTx.targetWalletId) {
-        oldWallet.balance += oldTx.amount;
-        const oldTarget = wallets.find(w => w.id === oldTx.targetWalletId);
-        if (oldTarget) {
-          oldTarget.balance -= oldTx.amount;
-        }
+        await txClient.wallet.update({
+          where: { id: oldTx.walletId },
+          data: { balance: { increment: oldTx.amount } }
+        });
+        await txClient.wallet.update({
+          where: { id: oldTx.targetWalletId },
+          data: { balance: { decrement: oldTx.amount } }
+        });
       }
-      // Note: "adjustment" type is treated as read-only/informational or handled via income/expense now.
-      // If we encounter a legacy "adjustment" type, we skip reverting balance logic to avoid unknown behavior,
-      // or we should have stored direction. Since we switched to income/expense, this is future-proof.
-    }
 
-    // 2. Apply New Transaction Effect
-    const newWallet = wallets.find(w => w.id === data.walletId);
-    if (newWallet) {
+      // 2. Apply New Transaction Effect
       if (data.type === "income") {
-        newWallet.balance += data.amount;
+        await txClient.wallet.update({
+          where: { id: data.walletId },
+          data: { balance: { increment: data.amount } }
+        });
       } else if (data.type === "expense") {
-        newWallet.balance -= data.amount;
+        await txClient.wallet.update({
+          where: { id: data.walletId },
+          data: { balance: { decrement: data.amount } }
+        });
       } else if (data.type === "transfer" && data.targetWalletId) {
-        newWallet.balance -= data.amount;
-        const newTarget = wallets.find(w => w.id === data.targetWalletId);
-        if (newTarget) {
-          newTarget.balance += data.amount;
+        await txClient.wallet.update({
+          where: { id: data.walletId },
+          data: { balance: { decrement: data.amount } }
+        });
+        await txClient.wallet.update({
+          where: { id: data.targetWalletId },
+          data: { balance: { increment: data.amount } }
+        });
+      }
+
+      // 3. Update the transaction record
+      await txClient.transaction.update({
+        where: { id: data.id },
+        data: {
+          date: new Date(data.date),
+          amount: data.amount,
+          type: data.type as any,
+          note: data.note,
+          walletId: data.walletId,
+          targetWalletId: data.targetWalletId || null,
+          categoryId: data.categoryId,
         }
-      }
-    }
+      });
+    });
 
-    // 3. Update repositories - Save all modified wallets
-    // We iterate over all wallets and save those that might have changed. 
-    // Affected wallets: oldTx source/target, newTx source/target.
-    const affectedWalletIds = new Set([
-      oldTx.walletId, 
-      oldTx.targetWalletId, 
-      data.walletId, 
-      data.targetWalletId
-    ].filter(Boolean) as string[]);
-
-    for (const wid of affectedWalletIds) {
-      const w = wallets.find(wal => wal.id === wid);
-      if (w) {
-        await walletRepo.update(w.id, userId, { balance: w.balance });
-      }
-    }
-
-    await transactionRepo.update(data.id, userId, data);
     revalidatePath("/finance");
     return true;
   } catch (error) {
-    console.error(error);
+    console.error("updateTransaction error:", error);
     return false;
   }
 }
@@ -382,25 +484,27 @@ export async function updateTransaction(data: Transaction): Promise<boolean> {
 export async function getFinanceSummary(): Promise<TotalAssetsSummary> {
   try {
     const userId = await getCurrentUser();
-    const wallets = await walletRepo.getByUserId(userId);
-    const transactions = await transactionRepo.getByUserId(userId);
+    
+    const wallets = await prisma.wallet.findMany({ where: { userId }});
+    const totalBalance = wallets.reduce((acc, w) => acc + w.balance.toNumber(), 0);
 
-    const totalBalance = wallets.reduce((acc, w) => acc + w.balance, 0);
-
-    // Calculate current month income/expense
     const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const monthTxs = await prisma.transaction.findMany({
+      where: {
+        userId,
+        date: { gte: startOfMonth, lte: endOfMonth }
+      }
+    });
 
     let totalIncome = 0;
     let totalExpense = 0;
 
-    transactions.forEach(t => {
-      const tDate = new Date(t.date);
-      if (tDate.getMonth() === currentMonth && tDate.getFullYear() === currentYear) {
-        if (t.type === "income") totalIncome += t.amount;
-        else if (t.type === "expense") totalExpense += t.amount;
-      }
+    monthTxs.forEach(t => {
+      if (t.type === "income") totalIncome += t.amount.toNumber();
+      else if (t.type === "expense") totalExpense += t.amount.toNumber();
     });
 
     return {
@@ -409,24 +513,28 @@ export async function getFinanceSummary(): Promise<TotalAssetsSummary> {
       totalExpense,
       netWorth: totalBalance, // To be updated with investments later
     };
-  } catch {
-    return {
-      totalBalance: 0,
-      totalIncome: 0,
-      totalExpense: 0,
-      netWorth: 0
-    };
+  } catch (error) {
+    console.error("getFinanceSummary error:", error);
+    return { totalBalance: 0, totalIncome: 0, totalExpense: 0, netWorth: 0 };
   }
 }
 
 export async function getCashFlow(months: number = 6) {
   try {
     const userId = await getCurrentUser();
-    const transactions = await transactionRepo.getByUserId(userId);
-
+    
+    // Calculate the start date for the flow
     const now = new Date();
-    const result = [];
+    const startDate = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
+    
+    const transactions = await prisma.transaction.findMany({
+      where: {
+        userId,
+        date: { gte: startDate }
+      }
+    });
 
+    const result = [];
     for (let i = months - 1; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthStr = d.toLocaleString('en-US', { month: 'short' });
@@ -436,10 +544,9 @@ export async function getCashFlow(months: number = 6) {
       let expense = 0;
 
       transactions.forEach(t => {
-        const tDate = new Date(t.date);
-        if (tDate.getMonth() === d.getMonth() && tDate.getFullYear() === d.getFullYear()) {
-          if (t.type === "income") income += t.amount;
-          else if (t.type === "expense") expense += t.amount;
+        if (t.date.getMonth() === d.getMonth() && t.date.getFullYear() === d.getFullYear()) {
+          if (t.type === "income") income += t.amount.toNumber();
+          else if (t.type === "expense") expense += t.amount.toNumber();
         }
       });
 
@@ -451,7 +558,8 @@ export async function getCashFlow(months: number = 6) {
     }
 
     return result;
-  } catch {
+  } catch (error) {
+    console.error("getCashFlow error:", error);
     return [];
   }
 }
@@ -461,7 +569,11 @@ export async function getCashFlow(months: number = 6) {
 export async function getSlips(): Promise<PaymentSlip[]> {
   try {
     const userId = await getCurrentUser();
-    return await slipRepo.getByUserId(userId);
+    const slips = await prisma.paymentSlip.findMany({
+      where: { userId },
+      orderBy: { uploadDate: "desc" }
+    });
+    return slips.map(mapSlip);
   } catch {
     return [];
   }
@@ -470,7 +582,8 @@ export async function getSlips(): Promise<PaymentSlip[]> {
 export async function getSlip(id: string): Promise<PaymentSlip | null> {
   try {
     const userId = await getCurrentUser();
-    return await slipRepo.findById(id, userId);
+    const slip = await prisma.paymentSlip.findUnique({ where: { id, userId } });
+    return slip ? mapSlip(slip) : null;
   } catch {
     return null;
   }
@@ -485,15 +598,11 @@ export async function uploadSlip(
     const file = formData.get("slip") as File;
     const note = formData.get("note") as string | null;
 
-    if (!file) {
-      return { success: false, error: "No file provided" };
-    }
+    if (!file) return { success: false, error: "No file provided" };
 
-    // Convert file to buffer first to scan in memory
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Try to scan QR code (Scan BEFORE saving)
     let qrData;
     try {
       const image = await loadImage(buffer);
@@ -505,57 +614,42 @@ export async function uploadSlip(
       const code = jsQR(imageData.data, imageData.width, imageData.height);
 
       if (code && code.data) {
-        console.log("QR Code Detected:", code.data);
         qrData = extractQRData(code.data);
-        console.log("Parsed QR Data:", qrData);
-      } else {
-        console.log("No QR Code detected by jsQR");
       }
-    } catch (qrError) {
-      console.error("QR scan error:", qrError);
-      // Scan failed, but we might still save if QR is not required
-    }
+    } catch {}
 
-    // Enforce QR requirement if requested
     if (options.requireQR) {
       if (!qrData || !qrData.amount) {
         let errorMessage = "Could not read payment data from QR code. Image was not saved.";
-        
-        // Improve error message if we found a reference but no amount (Verification QR)
         if (qrData && qrData.reference) {
-          errorMessage = `This is a 'Slip Verify' QR (Ref: ${qrData.reference}) which does not contain the transaction amount. Image was not saved.`;
+          errorMessage = `This is a 'Slip Verify' QR (Ref: ${qrData.reference}) which does not contain the transaction amount.`;
         }
-
-        return { 
-          success: false, 
-          error: errorMessage
-        };
+        return { success: false, error: errorMessage };
       }
     }
 
-    // Generate unique filename and path
     const fileExt = file.name.split(".").pop() || "jpg";
     const fileName = `${randomUUID()}.${fileExt}`;
     const filePath = join(SLIPS_DIR, fileName);
 
-    // Save image file (Only if checks passed)
+    try {
+      await mkdir(SLIPS_DIR, { recursive: true });
+    } catch {}
+
     await writeFile(filePath, buffer);
 
-    // Create slip record
-    const newSlip: PaymentSlip = {
-      id: randomUUID(),
-      fileName: file.name,
-      uploadDate: new Date().toISOString(),
-      imagePath: `/slips/${fileName}`,
-      qrData,
-      note: note || undefined,
-      userId,
-    };
-
-    await slipRepo.add(newSlip);
+    const newSlip = await prisma.paymentSlip.create({
+      data: {
+        fileName: file.name,
+        imagePath: `/slips/${fileName}`,
+        qrData: qrData as any,
+        note: note || undefined,
+        user: { connect: { id: userId } }
+      }
+    });
 
     revalidatePath("/finance");
-    return { success: true, slip: newSlip };
+    return { success: true, slip: mapSlip(newSlip) };
   } catch (error) {
     console.error("Upload slip error:", error);
     return { success: false, error: "Failed to upload slip" };
@@ -565,7 +659,7 @@ export async function uploadSlip(
 export async function deleteSlip(id: string): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    const slip = await slipRepo.findById(id, userId);
+    const slip = await prisma.paymentSlip.findUnique({ where: { id, userId } });
 
     if (!slip) return false;
 
@@ -573,12 +667,9 @@ export async function deleteSlip(id: string): Promise<boolean> {
     try {
       const filePath = join(process.cwd(), "public", slip.imagePath);
       await unlink(filePath);
-    } catch (fileError) {
-      console.error("Error deleting file:", fileError);
-      // Continue even if file deletion fails
-    }
+    } catch {}
 
-    await slipRepo.delete(id, userId);
+    await prisma.paymentSlip.delete({ where: { id } });
 
     revalidatePath("/finance");
     return true;
@@ -591,7 +682,11 @@ export async function deleteSlip(id: string): Promise<boolean> {
 export async function updateSlipNote(id: string, note: string): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    return await slipRepo.update(id, userId, { note });
+    await prisma.paymentSlip.update({
+      where: { id, userId },
+      data: { note }
+    });
+    return true;
   } catch (error) {
     console.error("Update slip note error:", error);
     return false;
@@ -601,21 +696,23 @@ export async function updateSlipNote(id: string, note: string): Promise<boolean>
 export async function linkSlipToTransaction(slipId: string, transactionId: string): Promise<boolean> {
   try {
     const userId = await getCurrentUser();
-    return await slipRepo.update(slipId, userId, { linkedTransactionId: transactionId });
+    await prisma.paymentSlip.update({
+      where: { id: slipId, userId },
+      data: { linkedTransactionId: transactionId }
+    });
+    return true;
   } catch (error) {
     console.error("Link slip to transaction error:", error);
     return false;
   }
 }
 
-// Upload slip and create transaction from QR code
 export async function uploadSlipAndCreateTransaction(
   formData: FormData
 ): Promise<{ success: boolean; transaction?: Transaction; slip?: PaymentSlip; error?: string }> {
   try {
     const userId = await getCurrentUser();
 
-    // Upload and scan slip with strict QR requirement
     const uploadResult = await uploadSlip(formData, { requireQR: true });
     if (!uploadResult.success || !uploadResult.slip) {
       return { success: false, error: uploadResult.error || "Failed to upload slip" };
@@ -623,52 +720,53 @@ export async function uploadSlipAndCreateTransaction(
 
     const slip = uploadResult.slip;
 
-    // Check if QR data exists and has amount
     if (!slip.qrData || !slip.qrData.amount) {
       return { success: false, error: "No QR code or amount found in slip", slip };
     }
 
-    // Get categories and find "Food" category
-    // Note: This relies on user having a "Food" category
-    const categories = await categoryRepo.getByUserId(userId);
-    const foodCategory = categories.find(c => c.name.toLowerCase() === "food" && c.type === "expense");
+    let foodCategory = await prisma.category.findFirst({
+      where: { userId, name: { equals: "food", mode: "insensitive" }, type: "expense" }
+    });
     
     if (!foodCategory) {
-      return { success: false, error: "Food category not found. Please create it first.", slip };
+      foodCategory = await prisma.category.create({
+        data: {
+          name: "Food",
+          type: "expense",
+          color: "#F59E0B",
+          icon: "dining",
+          user: { connect: { id: userId } }
+        }
+      });
     }
 
-    // Get first wallet as default
-    const wallets = await walletRepo.getByUserId(userId);
-    if (wallets.length === 0) {
+    const wallet = await prisma.wallet.findFirst({ where: { userId } });
+    if (!wallet) {
       return { success: false, error: "No wallet found. Please create a wallet first.", slip };
     }
 
-    // Extract note from QR data
     const note = formData.get("note") as string | null;
     const qrNote = slip.qrData.recipient ? `Payment to ${slip.qrData.recipient}` : "Payment from QR";
     const finalNote = note || qrNote;
 
-    // Create transaction
-    const transactionData: Omit<Transaction, "id" | "userId"> = {
+    const addResult = await addTransaction({
       date: new Date().toISOString(),
       amount: slip.qrData.amount,
       type: "expense",
       categoryId: foodCategory.id,
-      walletId: wallets[0].id,
+      walletId: wallet.id,
       note: finalNote,
       slipId: slip.id,
-    };
+    });
 
-    const addResult = await addTransaction(transactionData);
-    if (!addResult.success) {
+    if (!addResult.success || !addResult.transactionId) {
       return { success: false, error: "Failed to create transaction", slip };
     }
 
-    // Get the created transaction
-    const transactions = await transactionRepo.getByUserId(userId);
-    const transaction = transactions.find(t => t.id === addResult.transactionId);
+    const transaction = await prisma.transaction.findUnique({ where: { id: addResult.transactionId } });
+    if (!transaction) throw new Error("Transaction created but not found");
 
-    return { success: true, transaction, slip };
+    return { success: true, transaction: mapTransaction(transaction), slip };
   } catch (error) {
     console.error("Upload slip and create transaction error:", error);
     return { success: false, error: "Failed to process slip" };
