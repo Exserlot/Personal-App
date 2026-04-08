@@ -1,14 +1,11 @@
 import NextAuth from "next-auth";
-import Google from "next-auth/providers/google";
+import { authConfig } from "../auth.config";
 import Credentials from "next-auth/providers/credentials";
-import type { User as AppUser } from "@/types";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  ...authConfig,
   providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    }),
+    ...authConfig.providers,
     Credentials({
       name: "credentials",
       credentials: {
@@ -50,11 +47,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           email: user.email,
           name: user.name ?? undefined,
           image: user.image ?? undefined,
-        };
+        } as any;
       },
     }),
   ],
   callbacks: {
+    ...authConfig.callbacks,
     async signIn({ user, account }) {
       // Handle OAuth sign in
       if (account?.provider === "google") {
@@ -85,7 +83,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // Update user object with our internal ID and username
         user.id = existingUser.id;
-        user.username = existingUser.username;
+        (user as any).username = existingUser.username;
       }
 
       return true;
@@ -94,7 +92,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // Add user ID to token on sign in
       if (user) {
         token.id = user.id;
-        token.username = user.username;
+        token.username = (user as any).username;
       }
       return token;
     },
@@ -107,11 +105,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return session;
     },
   },
-  pages: {
-    signIn: "/login",
-  },
   session: {
     strategy: "jwt",
   },
 });
+
 
