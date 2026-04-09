@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getWishlist } from "@/lib/actions/wishlist";
 import { getWallets } from "@/lib/actions/finance";
 import { getSettings } from "@/lib/actions/settings";

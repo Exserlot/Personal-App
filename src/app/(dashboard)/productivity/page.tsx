@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getTasks, getHabits } from "@/lib/actions/productivity";
 import { ProductivityDashboard } from "@/components/productivity/productivity-dashboard";
 

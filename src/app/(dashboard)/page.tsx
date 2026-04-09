@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getWallets, getTransactions, getCategories, getFinanceSummary, getCashFlow } from "@/lib/actions/finance";
 import { getTasks } from "@/lib/actions/productivity";
 import { getWishlist } from "@/lib/actions/wishlist";

@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getSettings } from "@/lib/actions/settings";
 import { getWallets } from "@/lib/actions/finance";
 import { SettingsDashboard } from "@/components/settings/settings-dashboard";

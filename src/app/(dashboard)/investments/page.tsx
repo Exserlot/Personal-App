@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getInvestments, getInvestmentSummary } from "@/lib/actions/investments";
 import { InvestmentDashboard } from "@/components/investments/investment-dashboard";
 import { auth } from "@/lib/auth";

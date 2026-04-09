@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getSubscriptions, getYearlySubscriptionCost } from "@/lib/actions/subscriptions";
 import { SubscriptionDashboard } from "@/components/subscriptions/subscription-dashboard";
 import { auth } from "@/lib/auth";

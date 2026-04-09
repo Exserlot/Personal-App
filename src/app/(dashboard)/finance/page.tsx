@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { FinanceDashboard } from "@/components/finance/finance-dashboard";
 import {
   getWallets,
