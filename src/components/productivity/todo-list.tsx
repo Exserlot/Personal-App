@@ -32,7 +32,7 @@ export function TodoList({ initialTasks, date }: TodoListProps) {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm p-4">
+    <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl shadow-lg p-6">
        <div className="flex items-center justify-between mb-4">
           <span className="text-sm text-muted-foreground flex items-center gap-2">
              <CalendarDays size={14} />
@@ -52,14 +52,14 @@ export function TodoList({ initialTasks, date }: TodoListProps) {
            value={newTask}
            onChange={(e) => setNewTask(e.target.value)}
            placeholder="Add a new task..."
-           className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+           className="flex-1 rounded-2xl border border-white/40 dark:border-white/10 bg-white/50 dark:bg-stone-900/50 backdrop-blur-sm px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500/50 outline-none shadow-inner"
          />
          <button 
            type="submit" 
            disabled={loading}
-           className="bg-primary text-primary-foreground p-2 rounded-lg hover:opacity-90 transition-opacity"
+           className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white p-3 rounded-2xl hover:opacity-90 hover:shadow-md transition-all active:scale-95"
          >
-           <Plus size={18} />
+           <Plus size={20} />
          </button>
        </form>
 
@@ -70,7 +70,7 @@ export function TodoList({ initialTasks, date }: TodoListProps) {
             </div>
          )}
          {initialTasks.map(task => (
-           <div key={task.id} className="group flex items-center gap-3 p-2 hover:bg-secondary/50 rounded-lg transition-colors">
+           <div key={task.id} className="group flex items-center gap-3 p-4 hover:bg-white/60 dark:hover:bg-stone-700/50 rounded-2xl transition-all border border-transparent hover:border-white/40 dark:hover:border-white/10 shadow-sm hover:shadow-md mb-2 bg-white/30 dark:bg-stone-800/30">
               <button 
                 onClick={() => toggleTask(task.id)}
                 className={cn("text-muted-foreground hover:text-primary transition-colors", task.completed && "text-emerald-500")}

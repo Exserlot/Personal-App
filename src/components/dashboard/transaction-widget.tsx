@@ -19,7 +19,7 @@ export function TransactionWidget({ transactions, categories, wallets }: Transac
   const getWalletName = (id: string) => wallets.find(w => w.id === id)?.name || "Unknown";
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+    <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl p-8 shadow-lg">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
@@ -48,7 +48,7 @@ export function TransactionWidget({ transactions, categories, wallets }: Transac
           </div>
         ) : (
           todayTransactions.map(tx => (
-            <div key={tx.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors">
+            <div key={tx.id} className="flex items-center gap-3 p-4 mb-2 rounded-2xl bg-white/50 dark:bg-stone-700/30 hover:bg-white/80 dark:hover:bg-stone-700/60 hover:shadow-md transition-all border border-transparent hover:border-white/50">
               <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${
                 tx.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 
                 tx.type === 'expense' ? 'bg-rose-100 text-rose-600' : 

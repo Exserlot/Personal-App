@@ -20,7 +20,7 @@ export function MobileNav() {
 
   return (
     <div className={cn(
-      "fixed bottom-0 left-0 right-0 z-50 md:hidden bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 border-t border-border transition-all duration-300 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.1)]",
+      "fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white/60 dark:bg-stone-900/60 backdrop-blur-3xl border-t border-white/50 dark:border-white/10 transition-all duration-300 rounded-t-[2.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.1)] py-2",
       expanded ? "pb-8" : "pb-safe"
     )}>
       

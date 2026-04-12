@@ -64,37 +64,42 @@ export function InvestmentDashboard({ investments, userId, summary }: Investment
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+        <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl p-6 shadow-lg">
            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Total Principal</h3>
            <p className="text-3xl font-bold text-foreground">฿{summary.totalInvested.toLocaleString()}</p>
         </div>
         
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+        <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl p-6 shadow-lg">
            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Current Value</h3>
            <p className="text-3xl font-bold text-foreground">฿{summary.totalCurrentValue.toLocaleString()}</p>
         </div>
 
         <div className={cn(
-          "rounded-2xl p-6 shadow-sm",
-          isPositive ? "bg-emerald-50 border border-emerald-200" : "bg-rose-50 border border-rose-200"
+          "rounded-3xl p-6 shadow-xl relative overflow-hidden backdrop-blur-xl group hover:-translate-y-1 hover:shadow-2xl transition-all duration-300",
+          isPositive 
+            ? "border border-white/20 dark:border-white/10 bg-gradient-to-br from-emerald-200 via-teal-200 to-cyan-200 dark:from-emerald-900/80 dark:via-teal-900/80 dark:to-cyan-900/80" 
+            : "border border-rose-200/50 dark:border-rose-900/50 bg-gradient-to-br from-rose-200 via-orange-200 to-red-200 dark:from-rose-900/80 dark:via-orange-900/80 dark:to-red-900/80"
         )}>
-           <h3 className={cn(
-             "text-sm font-semibold uppercase tracking-wider mb-2",
-             isPositive ? "text-emerald-700" : "text-rose-700"
-           )}>Total Return</h3>
-           <div className="flex items-center gap-2">
-             <p className={cn(
-               "text-3xl font-bold",
-               isPositive ? "text-emerald-600" : "text-rose-600"
-             )}>
-               {isPositive ? "+" : ""}฿{summary.profitLoss.toLocaleString()}
-             </p>
-             <div className={cn(
-               "flex items-center gap-1 px-2 py-1 rounded-lg text-sm font-bold",
-               isPositive ? "bg-emerald-200 text-emerald-800" : "bg-rose-200 text-rose-800"
-             )}>
-                {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-                {summary.profitLossPercentage.toFixed(2)}%
+           <div className="absolute top-0 right-0 h-[200%] w-[200%] -mr-32 -mt-32 rounded-full bg-white/20 dark:bg-white/5 blur-3xl pointer-events-none" />
+           <div className="relative z-10">
+             <h3 className={cn(
+               "text-sm font-semibold uppercase tracking-wider mb-2 opacity-80",
+               isPositive ? "text-teal-950 dark:text-teal-50" : "text-rose-950 dark:text-rose-50"
+             )}>Total Return</h3>
+             <div className="flex items-center gap-2">
+               <p className={cn(
+                 "text-3xl font-black drop-shadow-sm",
+                 isPositive ? "text-teal-950 dark:text-teal-50" : "text-rose-950 dark:text-rose-50"
+               )}>
+                 {isPositive ? "+" : ""}฿{summary.profitLoss.toLocaleString()}
+               </p>
+               <div className={cn(
+                 "flex items-center gap-1 px-2 py-1 rounded-lg text-sm font-bold shadow-sm backdrop-blur-sm",
+                 isPositive ? "bg-white/30 dark:bg-black/20 text-teal-900 dark:text-teal-100" : "bg-white/30 dark:bg-black/20 text-rose-900 dark:text-rose-100"
+               )}>
+                  {isPositive ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
+                  {summary.profitLossPercentage.toFixed(2)}%
+               </div>
              </div>
            </div>
         </div>
@@ -113,7 +118,7 @@ export function InvestmentDashboard({ investments, userId, summary }: Investment
                <div 
                  key={inv.id}
                  onClick={() => setEditingInv(inv)}
-                 className="flex flex-col p-5 rounded-2xl border border-border bg-card cursor-pointer hover:shadow-md hover:border-primary/40 transition-all group"
+                 className="flex flex-col p-6 rounded-3xl border border-white/40 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-white/60 dark:hover:border-white/20 transition-all duration-300 group relative overflow-hidden"
                >
                  <div className="flex justify-between items-start mb-4">
                    <div className="flex items-center gap-3">
@@ -158,11 +163,11 @@ export function InvestmentDashboard({ investments, userId, summary }: Investment
          {investments.length === 0 && (
             <div 
               onClick={() => setShowAddModal(true)}
-              className="w-full flex flex-col items-center justify-center border-2 border-dashed border-border rounded-2xl p-8 text-muted-foreground hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all cursor-pointer min-h-[200px]"
+              className="w-full flex flex-col items-center justify-center border-2 border-dashed border-white/40 dark:border-white/10 rounded-3xl p-8 text-muted-foreground hover:border-white/80 dark:hover:border-white/30 bg-white/20 dark:bg-stone-800/20 backdrop-blur-xl hover:bg-white/40 dark:hover:bg-stone-800/40 hover:-translate-y-1 hover:shadow-xl transition-all cursor-pointer min-h-[200px] duration-300"
             >
                <Briefcase size={32} className="mb-2 opacity-30" />
-               <span className="font-medium">No Assets</span>
-               <span className="text-xs">Start building your portfolio</span>
+               <span className="font-medium text-lg">No Assets</span>
+               <span className="text-sm opacity-70">Start building your portfolio</span>
             </div>
          )}
       </div>

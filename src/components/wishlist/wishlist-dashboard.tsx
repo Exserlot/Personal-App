@@ -80,7 +80,7 @@ export function WishlistDashboard({ items, wallets, defaultWalletId, userId }: W
           <div 
             key={item.id} 
             onClick={() => setEditingItem(item)}
-            className="group relative flex flex-col rounded-2xl border border-border bg-card overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer hover:border-primary/50"
+            className="group relative flex flex-col rounded-3xl border border-white/40 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 cursor-pointer hover:border-white/60 dark:hover:border-white/20 hover:-translate-y-1"
           >
             
             {/* Image / Placeholder */}
@@ -144,11 +144,11 @@ export function WishlistDashboard({ items, wallets, defaultWalletId, userId }: W
         {activeItems.length === 0 && (
           <button 
             onClick={() => setShowAddModal(true)}
-            className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-2xl p-8 text-muted-foreground hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all min-h-[200px]"
+            className="flex flex-col items-center justify-center border-2 border-dashed border-white/40 dark:border-white/10 rounded-3xl p-8 text-muted-foreground hover:border-white/80 dark:hover:border-white/30 bg-white/20 dark:bg-stone-800/20 backdrop-blur-xl hover:bg-white/40 dark:hover:bg-stone-800/40 hover:-translate-y-1 hover:shadow-xl transition-all cursor-pointer min-h-[200px] duration-300"
           >
              <ShoppingBag size={32} className="mb-2 opacity-50" />
-             <span className="font-medium">Your Wishlist is empty</span>
-             <span className="text-xs">Add something you want to buy</span>
+             <span className="font-medium text-lg">Your Wishlist is empty</span>
+             <span className="text-sm opacity-70">Add something you want to buy</span>
           </button>
         )}
       </div>
@@ -159,7 +159,7 @@ export function WishlistDashboard({ items, wallets, defaultWalletId, userId }: W
           <h3 className="text-lg font-bold mb-4 opacity-70">Purchased Items</h3>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 opacity-60 hover:opacity-100 transition-opacity">
             {boughtItems.map(item => (
-               <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-secondary/20">
+               <div key={item.id} className="flex items-center gap-3 p-4 rounded-2xl border border-white/20 dark:border-white/5 bg-white/30 dark:bg-stone-800/30 backdrop-blur-xl hover:bg-white/50 dark:hover:bg-stone-800/50 transition-all shadow-sm">
                   {item.image ? (
                      <div className="h-10 w-10 shrink-0 rounded-lg overflow-hidden border border-border">
                        <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
@@ -226,8 +226,8 @@ export function WishlistDashboard({ items, wallets, defaultWalletId, userId }: W
       )}
 
       {deletingItem && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95 duration-200" onClick={() => setDeletingItem(null)}>
-          <div className="w-full max-w-sm rounded-2xl border border-border bg-background p-6 shadow-2xl ring-1 ring-border" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in zoom-in-95 duration-200" onClick={() => setDeletingItem(null)}>
+          <div className="w-full max-w-sm rounded-3xl border border-white/40 dark:border-white/10 bg-white/80 dark:bg-stone-900/80 backdrop-blur-3xl p-8 shadow-2xl ring-1 ring-black/5" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-bold mb-2 flex items-center gap-2 text-rose-600">
                <Trash2 size={24} />
                Delete Item

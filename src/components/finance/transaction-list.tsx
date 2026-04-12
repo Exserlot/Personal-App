@@ -83,7 +83,7 @@ export function TransactionList({ transactions, categories, wallets }: Transacti
 
   return (
     <>
-      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+      <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl p-8 shadow-lg">
         <div className="flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between mb-6">
           <h3 className="text-lg font-bold">Recent Transactions</h3>
           
@@ -138,7 +138,7 @@ export function TransactionList({ transactions, categories, wallets }: Transacti
                               <div 
                                 key={t.id} 
                                 onClick={() => setSelectedTransaction(t)}
-                                className="flex items-center justify-between p-3 rounded-lg hover:bg-accent/50 transition-colors cursor-pointer group"
+                                className="flex items-center justify-between p-4 mb-2 rounded-2xl hover:bg-white/60 dark:hover:bg-stone-700/50 hover:shadow-md transition-all cursor-pointer group border border-transparent hover:border-white/40 dark:hover:border-white/5"
                               >
                                   <div className="flex items-center gap-3">
                                       <div className={cn(
@@ -181,12 +181,12 @@ export function TransactionList({ transactions, categories, wallets }: Transacti
                                           </p>
                                       </div>
                                   </div>
-                                  <div className={`font-bold ${
+                                  <div className={`text-lg font-black tracking-tight drop-shadow-sm ${
                                       isIncome 
-                                        ? 'text-emerald-600' 
+                                        ? 'text-emerald-500' 
                                         : (isTransfer 
-                                            ? 'text-blue-600' 
-                                            : (isAdjustment ? 'text-amber-600' : 'text-rose-600')
+                                            ? 'text-blue-500' 
+                                            : (isAdjustment ? 'text-amber-500' : 'text-rose-500')
                                           )
                                     }`}>
                                       {isIncome ? '+' : (isTransfer || isAdjustment ? '' : '-')}฿{t.amount.toLocaleString()}

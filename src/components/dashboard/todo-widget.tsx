@@ -13,7 +13,7 @@ export function TodoWidget({ tasks }: TodoWidgetProps) {
   const totalCount = tasks.length;
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+    <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl p-8 shadow-lg">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
@@ -42,7 +42,7 @@ export function TodoWidget({ tasks }: TodoWidgetProps) {
           </div>
         ) : (
           tasks.map(task => (
-            <div key={task.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors">
+            <div key={task.id} className="flex items-center gap-3 p-4 mb-2 rounded-2xl bg-white/50 dark:bg-stone-700/30 hover:bg-white/80 dark:hover:bg-stone-700/60 hover:shadow-md transition-all border border-transparent hover:border-white/50">
               <div className={`shrink-0 ${task.completed ? 'text-emerald-500' : 'text-muted-foreground'}`}>
                 {task.completed ? <CheckCircle2 size={20} /> : <Circle size={20} />}
               </div>

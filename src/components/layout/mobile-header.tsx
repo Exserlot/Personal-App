@@ -13,7 +13,7 @@ export function MobileHeader() {
       {/* Logo */}
       <div className="flex items-center gap-2">
         <div className="h-8 w-8 rounded-lg bg-primary" />
-        <span className="text-lg font-bold tracking-tight">Antigravity</span>
+        <span className="text-lg font-bold tracking-tight">Personal App</span>
       </div>
 
       {/* User Actions */}

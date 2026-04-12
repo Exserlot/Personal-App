@@ -85,7 +85,7 @@ export function SubscriptionDashboard({ subscriptions, userId, yearlyCost }: Sub
       <div 
         key={sub.id}
         onClick={() => setEditingSub(sub)}
-        className="flex flex-col p-5 rounded-2xl border border-border bg-card cursor-pointer hover:shadow-md hover:border-primary/40 transition-all group relative overflow-hidden"
+        className="flex flex-col p-6 rounded-3xl border border-white/40 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl cursor-pointer hover:-translate-y-1 hover:shadow-xl hover:border-white/60 dark:hover:border-white/20 transition-all duration-300 group relative overflow-hidden"
       >
         <div className="flex justify-between items-start mb-2">
           <h4 className="font-bold text-base leading-tight group-hover:text-primary transition-colors">{sub.name}</h4>
@@ -156,21 +156,24 @@ export function SubscriptionDashboard({ subscriptions, userId, yearlyCost }: Sub
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+        <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl p-6 shadow-lg">
            <h3 className="text-xs lg:text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Daily Total</h3>
            <p className="text-2xl lg:text-3xl font-bold text-foreground">฿{yearlyCost.dailyTotal.toLocaleString()}</p>
         </div>
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+        <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl p-6 shadow-lg">
            <h3 className="text-xs lg:text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Monthly Total</h3>
            <p className="text-2xl lg:text-3xl font-bold text-foreground">฿{yearlyCost.monthlyTotal.toLocaleString()}</p>
         </div>
-        <div className="bg-card border border-border rounded-2xl p-6 shadow-sm">
+        <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl p-6 shadow-lg">
            <h3 className="text-xs lg:text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Yearly Total</h3>
            <p className="text-2xl lg:text-3xl font-bold text-foreground">฿{yearlyCost.yearlyTotal.toLocaleString()}</p>
         </div>
-        <div className="bg-primary/10 border border-primary/20 rounded-2xl p-6 shadow-sm col-span-2 lg:col-span-1">
-           <h3 className="text-xs lg:text-sm font-semibold text-primary/80 uppercase tracking-wider mb-2">Total Fixed / Year</h3>
-           <p className="text-2xl lg:text-3xl font-bold text-primary">฿{yearlyCost.totalFixedYearlyCost.toLocaleString()}</p>
+        <div className="rounded-3xl border border-white/20 dark:border-white/10 bg-gradient-to-br from-purple-200 via-fuchsia-200 to-pink-200 dark:from-purple-900/80 dark:via-fuchsia-900/80 dark:to-pink-900/80 text-purple-950 dark:text-purple-50 p-6 shadow-xl backdrop-blur-xl relative overflow-hidden group hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 col-span-2 lg:col-span-1">
+           <div className="absolute top-0 right-0 h-[200%] w-[200%] -mr-32 -mt-32 rounded-full bg-white/20 dark:bg-white/5 blur-3xl pointer-events-none" />
+           <div className="relative z-10 flex flex-col h-full justify-center">
+             <h3 className="text-xs lg:text-sm font-semibold opacity-80 uppercase tracking-wider mb-2">Total Fixed / Year</h3>
+             <p className="text-2xl lg:text-3xl font-black drop-shadow-sm">฿{yearlyCost.totalFixedYearlyCost.toLocaleString()}</p>
+           </div>
         </div>
       </div>
 
@@ -218,11 +221,11 @@ export function SubscriptionDashboard({ subscriptions, userId, yearlyCost }: Sub
          {subscriptions.length === 0 && (
             <div 
               onClick={() => setShowAddModal(true)}
-              className="w-full flex flex-col items-center justify-center border-2 border-dashed border-border rounded-2xl p-8 text-muted-foreground hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all cursor-pointer min-h-[200px]"
+              className="w-full flex flex-col items-center justify-center border-2 border-dashed border-white/40 dark:border-white/10 rounded-3xl p-8 text-muted-foreground hover:border-white/80 dark:hover:border-white/30 bg-white/20 dark:bg-stone-800/20 backdrop-blur-xl hover:bg-white/40 dark:hover:bg-stone-800/40 hover:-translate-y-1 hover:shadow-xl transition-all cursor-pointer min-h-[200px] duration-300"
             >
                <RefreshCw size={32} className="mb-2 opacity-30" />
-               <span className="font-medium">No Subscriptions added</span>
-               <span className="text-xs">Click to add your recurring payments</span>
+               <span className="font-medium text-lg">No Subscriptions added</span>
+               <span className="text-sm opacity-70">Click to add your recurring payments</span>
             </div>
          )}
       </div>

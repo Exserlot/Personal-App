@@ -25,21 +25,21 @@ export function HabitTracker({ initialHabits, date }: HabitTrackerProps) {
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card shadow-sm p-4">
+    <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl shadow-lg p-6">
       <form onSubmit={handleAdd} className="flex gap-2 mb-4">
          <input
            type="text"
            value={newHabit}
            onChange={(e) => setNewHabit(e.target.value)}
            placeholder="New habit..."
-           className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
+           className="flex-1 rounded-2xl border border-white/40 dark:border-white/10 bg-white/50 dark:bg-stone-900/50 backdrop-blur-sm px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-500/50 outline-none shadow-inner"
          />
          <button 
            type="submit" 
            disabled={loading}
-           className="bg-primary text-primary-foreground p-2 rounded-lg hover:opacity-90 transition-opacity"
+           className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white p-3 rounded-2xl hover:opacity-90 hover:shadow-md transition-all active:scale-95"
          >
-           <Plus size={18} />
+           <Plus size={20} />
          </button>
        </form>
 
@@ -52,14 +52,14 @@ export function HabitTracker({ initialHabits, date }: HabitTrackerProps) {
          {initialHabits.map(habit => {
            const isCompleted = habit.completedDates.includes(date);
            return (
-             <div key={habit.id} className="flex items-center justify-between p-3 rounded-xl border border-border bg-secondary/10">
+             <div key={habit.id} className="flex items-center justify-between p-4 rounded-2xl border border-white/20 dark:border-white/5 bg-white/30 dark:bg-stone-800/30 backdrop-blur-xl hover:bg-white/50 dark:hover:bg-stone-800/50 transition-all shadow-sm mb-2">
                 <div 
                   onClick={() => toggleHabit(habit.id, date)}
                   className="flex items-center gap-3 cursor-pointer select-none"
                 >
                    <div className={cn(
-                     "h-8 w-8 rounded-lg flex items-center justify-center transition-all border-2",
-                     isCompleted ? "bg-emerald-500 border-emerald-500 text-white" : "border-muted-foreground/30 hover:border-emerald-500/50"
+                     "h-10 w-10 rounded-xl flex items-center justify-center transition-all border-2",
+                     isCompleted ? "bg-gradient-to-br from-orange-400 to-rose-500 border-none shadow-md text-white scale-110" : "bg-white/50 dark:bg-stone-800 border-white/50 dark:border-white/10 hover:border-orange-400/50"
                    )}>
                       <Flame size={18} className={cn(isCompleted ? "fill-white" : "text-muted-foreground/50")} />
                    </div>

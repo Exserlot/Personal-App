@@ -35,39 +35,45 @@ export function FinanceDashboard({
       {/* Header & Total Assets (Omni-Wallet) */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {/* Total Assets Card - The Big One */}
-        <div className="rounded-xl border border-border bg-stone-900 text-stone-50 p-6 shadow-md md:col-span-2 relative overflow-hidden">
-          <div className="absolute right-0 top-0 h-32 w-32 -mr-8 -mt-8 rounded-full bg-stone-800/50 blur-2xl" />
-          <div className="relative z-10">
-            <div className="flex items-center gap-2 mb-2 text-stone-300">
-              <WalletIcon size={18} />
-              <span className="text-sm font-medium">Total Assets (Net Worth)</span>
+        <div className="rounded-3xl border border-white/20 dark:border-white/10 bg-gradient-to-br from-emerald-200 via-teal-200 to-cyan-200 dark:from-emerald-900/80 dark:via-teal-900/80 dark:to-cyan-900/80 text-teal-950 dark:text-teal-50 p-8 shadow-xl md:col-span-2 relative overflow-hidden backdrop-blur-xl">
+          <div className="absolute top-0 right-0 h-[200%] w-[200%] -mr-32 -mt-32 rounded-full bg-white/20 dark:bg-white/5 blur-3xl pointer-events-none" />
+          <div className="relative z-10 flex flex-col h-full justify-center">
+            <div className="flex items-center gap-2 mb-3 opacity-80 backdrop-blur-sm bg-white/30 dark:bg-black/20 w-fit px-3 py-1.5 rounded-full text-sm font-semibold">
+              <WalletIcon size={16} />
+              <span>Total Assets (Net Worth)</span>
             </div>
-            <div className="text-4xl font-bold tracking-tight">
+            <div className="text-5xl lg:text-6xl font-black tracking-tight mt-2 drop-shadow-sm">
               ฿{summary.netWorth.toLocaleString()}
             </div>
           </div>
         </div>
 
         {/* Income Card */}
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <ArrowUpCircle className="text-emerald-500" size={18} />
-            <span>Income (This Month)</span>
-          </div>
-          <div className="text-2xl font-bold text-foreground">
-            ฿{summary.totalIncome.toLocaleString()}
-          </div>
+        <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/50 dark:bg-stone-800/50 backdrop-blur-xl p-6 shadow-lg flex flex-col justify-center relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl transition-all duration-300">
+           <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-200/50 dark:bg-emerald-900/40 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500 z-0" />
+           <div className="relative z-10">
+            <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400 mb-3 bg-emerald-100/50 dark:bg-emerald-950/50 w-fit px-3 py-1.5 rounded-full">
+              <ArrowUpCircle size={16} />
+              <span>Income (This Month)</span>
+            </div>
+            <div className="text-3xl font-bold text-stone-800 dark:text-white">
+              ฿{summary.totalIncome.toLocaleString()}
+            </div>
+           </div>
         </div>
 
         {/* Expense Card */}
-        <div className="rounded-xl border border-border bg-card p-6 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <ArrowDownCircle className="text-rose-500" size={18} />
-            <span>Expense (This Month)</span>
-          </div>
-          <div className="text-2xl font-bold text-foreground">
-            ฿{summary.totalExpense.toLocaleString()}
-          </div>
+        <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/50 dark:bg-stone-800/50 backdrop-blur-xl p-6 shadow-lg flex flex-col justify-center relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl transition-all duration-300">
+           <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-rose-200/50 dark:bg-rose-900/40 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500 z-0" />
+           <div className="relative z-10">
+            <div className="flex items-center gap-2 text-sm font-semibold text-rose-700 dark:text-rose-400 mb-3 bg-rose-100/50 dark:bg-rose-950/50 w-fit px-3 py-1.5 rounded-full">
+              <ArrowDownCircle size={16} />
+              <span>Expense (This Month)</span>
+            </div>
+            <div className="text-3xl font-bold text-stone-800 dark:text-white">
+              ฿{summary.totalExpense.toLocaleString()}
+            </div>
+           </div>
         </div>
       </div>
 

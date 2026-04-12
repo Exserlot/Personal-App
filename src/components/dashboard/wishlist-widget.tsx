@@ -18,7 +18,7 @@ export function WishlistWidget({ items }: WishlistWidgetProps) {
     .slice(0, 3);
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+    <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl p-8 shadow-lg">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
@@ -47,7 +47,7 @@ export function WishlistWidget({ items }: WishlistWidgetProps) {
           </div>
         ) : (
           topItems.map(item => (
-            <div key={item.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors">
+            <div key={item.id} className="flex items-center gap-3 p-4 mb-2 rounded-2xl bg-white/50 dark:bg-stone-700/30 hover:bg-white/80 dark:hover:bg-stone-700/60 hover:shadow-md transition-all border border-transparent hover:border-white/50">
               <div className="h-12 w-12 rounded-lg bg-secondary/50 flex items-center justify-center shrink-0 overflow-hidden">
                 {item.image ? (
                   <img src={item.image} alt={item.name} className="h-full w-full object-cover" />

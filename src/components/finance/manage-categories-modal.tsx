@@ -50,6 +50,8 @@ const ICONS = [
   { name: "circle", component: Plus }, // Fallback/Default
 ];
 
+import { GlobalModal } from "@/components/ui/global-modal";
+
 export function ManageCategoriesModal({ categories, isOpen, onClose }: ManageCategoriesModalProps) {
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<TransactionType>("expense");
@@ -138,9 +140,14 @@ export function ManageCategoriesModal({ categories, isOpen, onClose }: ManageCat
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95 duration-200" onClick={onClose}>
-      <div className="w-full max-w-lg rounded-2xl border border-border bg-background p-6 shadow-2xl ring-1 ring-border flex flex-col max-h-[85vh] relative" onClick={(e) => e.stopPropagation()}>
-        
+    <GlobalModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Manage Categories"
+      maxWidth="lg"
+    >
+      {/* Container to match existing padding logic in the custom modal */}
+      <div className="flex flex-col flex-1 min-h-0 relative p-6 pt-0 space-y-4">
         {/* Delete Confirmation Overlay */}
         {deleteId && (
            <div className="absolute inset-0 bg-background/95 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center p-6 animate-in fade-in zoom-in-95 duration-200 rounded-2xl">
@@ -170,16 +177,8 @@ export function ManageCategoriesModal({ categories, isOpen, onClose }: ManageCat
            </div>
         )}
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4 shrink-0">
-          <h3 className="text-xl font-bold">Manage Categories</h3>
-          <button onClick={onClose} className="h-8 w-8 rounded-full hover:bg-secondary flex items-center justify-center transition-colors text-muted-foreground">
-            <X size={18} />
-          </button>
-        </div>
-
         {/* Tabs */}
-        <div className="flex bg-secondary p-1 rounded-xl mb-4 shrink-0">
+        <div className="flex bg-secondary p-1 rounded-xl shrink-0 mt-4">
           <button
             onClick={() => setActiveTab("income")}
             className={cn(
@@ -340,7 +339,7 @@ export function ManageCategoriesModal({ categories, isOpen, onClose }: ManageCat
         </div>
 
       </div>
-    </div>,
+    </GlobalModal>,
     document.body
   );
 }

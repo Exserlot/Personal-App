@@ -19,7 +19,7 @@ export function UpcomingBills({ subscriptions }: UpcomingBillsProps) {
   };
 
   return (
-    <div className="bg-card border border-border rounded-2xl p-6 shadow-sm flex flex-col h-full">
+    <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl p-8 shadow-lg flex flex-col h-full">
       <div className="flex items-center gap-2 mb-6">
         <CalendarClock className="text-purple-500" size={20} />
         <h3 className="font-bold text-lg">Upcoming Bills</h3>
@@ -33,7 +33,7 @@ export function UpcomingBills({ subscriptions }: UpcomingBillsProps) {
       ) : (
         <div className="space-y-4 flex-1">
           {activeSubs.map((sub) => (
-            <div key={sub.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-secondary/50 transition-colors border border-transparent hover:border-border">
+            <div key={sub.id} className="flex items-center justify-between p-3 rounded-2xl hover:bg-white/60 dark:hover:bg-stone-700/50 hover:shadow-md transition-all cursor-pointer border border-transparent hover:border-white/40 dark:hover:border-white/5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-500 shrink-0">
                   <CalendarClock size={16} />

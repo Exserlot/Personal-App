@@ -91,8 +91,8 @@ export function CategoryManager() {
       </button>
 
       {isOpen && mounted && createPortal(
-        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95 duration-200">
-          <div className="w-full max-w-sm rounded-2xl border border-border bg-background p-6 shadow-2xl ring-1 ring-border max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-full max-w-sm rounded-3xl border border-white/40 dark:border-white/10 bg-white/80 dark:bg-stone-900/80 backdrop-blur-3xl p-8 shadow-2xl ring-1 ring-black/5 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                  <div 

@@ -79,8 +79,8 @@ export function SettingsDashboard({ user, settings, wallets }: SettingsDashboard
       <div className="grid gap-6">
         
         {/* Profile Card */}
-        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
-           <div className="border-b border-border bg-secondary/30 px-6 py-4 flex items-center justify-between">
+        <div className="rounded-3xl border border-white/40 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl overflow-hidden shadow-lg">
+           <div className="border-b border-white/20 dark:border-white/5 bg-white/30 dark:bg-black/10 backdrop-blur-md px-6 py-4 flex items-center justify-between">
               <h3 className="font-bold flex items-center gap-2">
                  <UserIcon size={18} className="text-primary" />
                  Profile Information
@@ -124,13 +124,13 @@ export function SettingsDashboard({ user, settings, wallets }: SettingsDashboard
                          type="text" 
                          value={name} 
                          onChange={e => setName(e.target.value)} 
-                         className="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
+                         className="w-full rounded-2xl border border-white/40 dark:border-white/10 bg-white/50 dark:bg-stone-900/50 backdrop-blur-sm px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all font-medium shadow-inner"
                          placeholder="Enter your name"
                        />
                     </div>
                     <div>
                        <label className="block text-sm font-medium mb-1 px-1">Login Provider</label>
-                       <div className="w-full rounded-xl border border-input bg-secondary/50 px-4 py-2.5 text-sm font-medium text-muted-foreground flex items-center gap-2 cursor-not-allowed">
+                       <div className="w-full rounded-2xl border border-white/20 dark:border-white/5 bg-white/30 dark:bg-stone-800/30 backdrop-blur-sm px-4 py-2.5 text-sm font-medium text-muted-foreground flex items-center gap-2 cursor-not-allowed">
                           {user.email ? "Google Account" : "Credentials (Username/Password)"}
                           <span className="text-xs font-normal opacity-70">({user.email || user.username})</span>
                        </div>
@@ -143,8 +143,8 @@ export function SettingsDashboard({ user, settings, wallets }: SettingsDashboard
 
 
         {/* Preferences Card */}
-        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
-           <div className="border-b border-border bg-secondary/30 px-6 py-4 flex items-center justify-between">
+        <div className="rounded-3xl border border-white/40 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl shadow-lg">
+           <div className="border-b border-white/20 dark:border-white/5 bg-white/30 dark:bg-black/10 backdrop-blur-md px-6 py-4 flex items-center justify-between">
               <h3 className="font-bold flex items-center gap-2">
                  <CreditCard size={18} className="text-primary" />
                  Finance Settings
@@ -202,7 +202,7 @@ export function SettingsDashboard({ user, settings, wallets }: SettingsDashboard
       </div>
 
       {hasChanges && (
-         <div className="fixed bottom-24 sm:bottom-8 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-sm bg-background border border-border shadow-2xl rounded-2xl p-4 flex items-center justify-between animate-in slide-in-from-bottom-5 z-50">
+         <div className="fixed bottom-24 sm:bottom-8 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-sm bg-white/80 dark:bg-stone-900/80 backdrop-blur-3xl border border-white/40 dark:border-white/10 shadow-2xl rounded-3xl p-4 flex items-center justify-between animate-in slide-in-from-bottom-5 z-50">
              <span className="text-sm font-medium">Unsaved changes</span>
              <button
                onClick={handleSave}

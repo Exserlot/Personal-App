@@ -13,7 +13,7 @@ interface CashFlowChartProps {
 
 export function CashFlowChart({ data }: CashFlowChartProps) {
   return (
-    <div className="bg-card border border-border rounded-2xl p-6 shadow-sm flex flex-col h-full">
+    <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/40 dark:bg-stone-800/40 backdrop-blur-xl p-8 shadow-lg flex flex-col h-full">
       <div className="flex items-center gap-2 mb-6">
         <ArrowLeftRight className="text-primary" size={20} />
         <h3 className="font-bold text-lg">Cash Flow (Last 6 Months)</h3>

@@ -9,6 +9,8 @@ import { useSession } from "next-auth/react";
 import { useSidebar } from "./sidebar-context";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { ThemeToggle } from "./theme-toggle";
+import Image from "next/image";
+import logoImg from "@/../public/logo.png";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -18,7 +20,7 @@ export function Sidebar() {
   return (
     <aside 
       className={cn(
-        "fixed left-0 top-0 h-full border-r border-border bg-card transition-all duration-300 ease-in-out hidden md:flex flex-col z-50",
+        "fixed left-0 top-0 h-full border-r border-white/40 dark:border-white/10 bg-white/40 dark:bg-stone-900/40 backdrop-blur-3xl transition-all duration-300 ease-in-out hidden md:flex flex-col z-50 shadow-2xl",
         isCollapsed ? "w-20" : "w-64"
       )}
     >
@@ -26,7 +28,9 @@ export function Sidebar() {
       <div className={cn("mb-6 flex items-center h-16 transition-all", isCollapsed ? "justify-center px-2" : "justify-between px-4")}>
         {!isCollapsed && (
           <div className="flex items-center gap-3 animate-in fade-in duration-300">
-            <div className="h-8 w-8 rounded-lg bg-primary shrink-0" />
+            <div className="h-8 w-8 relative shrink-0 overflow-hidden rounded-lg shadow-sm">
+              <Image src={logoImg} alt="Personal App Logo" fill className="object-cover" sizes="(max-width: 32px) 100vw, 32px" />
+            </div>
             <span className="text-xl font-bold tracking-tight">
               Personal App
             </span>
@@ -53,11 +57,11 @@ export function Sidebar() {
               href={item.disabled ? "#" : item.href}
               title={isCollapsed ? item.label : undefined}
               className={cn(
-                "flex items-center rounded-lg py-2.5 transition-colors group relative",
+                "flex items-center rounded-xl py-2.5 transition-all duration-200 group relative",
                 isCollapsed ? "justify-center px-2" : "gap-3 px-3",
                 isActive 
-                  ? "bg-primary text-primary-foreground" 
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                  ? "bg-gradient-to-r from-pink-300 to-violet-300 dark:from-pink-600 dark:to-violet-700 text-white" 
+                  : "text-stone-600 dark:text-stone-400 hover:bg-white/50 dark:hover:bg-stone-800/50 hover:text-stone-900 dark:hover:text-white",
                 item.disabled && "opacity-50 cursor-not-allowed hover:bg-transparent hover:text-muted-foreground"
               )}
             >
