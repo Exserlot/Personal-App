@@ -16,9 +16,25 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { auth } from "@/lib/auth";
 import { getSettings } from "@/lib/actions/settings";
 
+import type { Viewport } from "next";
+
 export const metadata: Metadata = {
   title: "Personal Dashboard",
   description: "Minimalist Personal Management Dashboard",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Workspace",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#8b5cf6",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default async function RootLayout({
