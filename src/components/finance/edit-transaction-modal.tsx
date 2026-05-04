@@ -313,7 +313,7 @@ export function EditTransactionModal({
                     src={
                       slip.imagePath.startsWith("/")
                         ? slip.imagePath
-                        : `/api/media?path=${slip.imagePath}`
+                        : `/api/media?slipId=${slip.id}`
                     }
                     alt="Slip"
                     className="w-full h-auto max-h-[200px] object-contain rounded-xl border border-border bg-secondary/20"

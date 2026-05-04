@@ -51,7 +51,7 @@ export function GlobalModal({
       onClick={onClose}
     >
       <div
-        className={`w-full ${maxWidthClasses[maxWidth]} rounded-3xl bg-gradient-to-br from-rose-100/80 via-purple-50/80 to-sky-100/80 dark:from-rose-950/30 dark:via-purple-900/20 dark:to-sky-950/30 backdrop-blur-3xl shadow-2xl ring-1 ring-black/5 overflow-hidden relative flex flex-col max-h-[90vh]`}
+        className={`w-full ${maxWidthClasses[maxWidth]} rounded-3xl bg-gradient-to-br from-rose-100/80 via-purple-50/80 to-sky-100/80 dark:from-rose-950/60 dark:via-purple-900/50 dark:to-sky-950/60 backdrop-blur-3xl shadow-2xl ring-1 ring-black/5 overflow-hidden relative flex flex-col max-h-[90vh]`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-6 pb-4 border-b border-white/20 dark:border-white/5 shrink-0">
