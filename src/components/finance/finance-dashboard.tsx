@@ -1,15 +1,27 @@
-"use client"
+"use client";
 
-import { Wallet, Transaction, Category, TotalAssetsSummary, PaymentSlip } from "@/types";
+import {
+  Wallet,
+  Transaction,
+  Category,
+  TotalAssetsSummary,
+  PaymentSlip,
+  Budget,
+} from "@/types";
 import { WalletList } from "./wallet-list";
+import { BudgetManager } from "./budget-manager";
 import { TransactionForm } from "./transaction-form";
 import { AddTransactionModal } from "./add-transaction-modal";
 import { TransactionList } from "./transaction-list";
+import { ExpensePieChart } from "./expense-pie-chart";
+import { CashFlowChart } from "./cashflow-chart";
+import { YearInReviewModal } from "./year-in-review-modal";
 import {
   ArrowUpCircle,
   ArrowDownCircle,
   Wallet as WalletIcon,
-  Plus
+  Plus,
+  CalendarHeart,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -19,6 +31,7 @@ interface FinanceDashboardProps {
   categories: Category[];
   summary: TotalAssetsSummary;
   slips: PaymentSlip[];
+  budgets: Budget[];
 }
 
 export function FinanceDashboard({
@@ -26,9 +39,11 @@ export function FinanceDashboard({
   transactions,
   categories,
   summary,
-  slips: initialSlips
+  slips: initialSlips,
+  budgets,
 }: FinanceDashboardProps) {
   const [showAddTransactionModal, setShowAddTransactionModal] = useState(false);
+  const [showYearInReview, setShowYearInReview] = useState(false);
 
   return (
     <div className="space-y-8">
@@ -45,13 +60,21 @@ export function FinanceDashboard({
             <div className="text-5xl lg:text-6xl font-black tracking-tight mt-2 drop-shadow-sm">
               ฿{summary.netWorth.toLocaleString()}
             </div>
+            
+            <button
+              onClick={() => setShowYearInReview(true)}
+              className="absolute top-4 right-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/40 backdrop-blur-md transition-all text-sm font-bold text-teal-950 dark:text-teal-50"
+            >
+              <CalendarHeart size={16} />
+              <span>{new Date().getFullYear()} Wrapped</span>
+            </button>
           </div>
         </div>
 
         {/* Income Card */}
         <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/50 dark:bg-stone-800/50 backdrop-blur-xl p-6 shadow-lg flex flex-col justify-center relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl transition-all duration-300">
-           <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-200/50 dark:bg-emerald-900/40 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500 z-0" />
-           <div className="relative z-10">
+          <div className="absolute -right-4 -top-4 w-24 h-24 bg-emerald-200/50 dark:bg-emerald-900/40 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500 z-0" />
+          <div className="relative z-10">
             <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400 mb-3 bg-emerald-100/50 dark:bg-emerald-950/50 w-fit px-3 py-1.5 rounded-full">
               <ArrowUpCircle size={16} />
               <span>Income (This Month)</span>
@@ -59,13 +82,13 @@ export function FinanceDashboard({
             <div className="text-3xl font-bold text-stone-800 dark:text-white">
               ฿{summary.totalIncome.toLocaleString()}
             </div>
-           </div>
+          </div>
         </div>
 
         {/* Expense Card */}
         <div className="rounded-3xl border border-white/50 dark:border-white/10 bg-white/50 dark:bg-stone-800/50 backdrop-blur-xl p-6 shadow-lg flex flex-col justify-center relative overflow-hidden group hover:-translate-y-1 hover:shadow-xl transition-all duration-300">
-           <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-rose-200/50 dark:bg-rose-900/40 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500 z-0" />
-           <div className="relative z-10">
+          <div className="absolute -left-4 -bottom-4 w-24 h-24 bg-rose-200/50 dark:bg-rose-900/40 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500 z-0" />
+          <div className="relative z-10">
             <div className="flex items-center gap-2 text-sm font-semibold text-rose-700 dark:text-rose-400 mb-3 bg-rose-100/50 dark:bg-rose-950/50 w-fit px-3 py-1.5 rounded-full">
               <ArrowDownCircle size={16} />
               <span>Expense (This Month)</span>
@@ -73,20 +96,34 @@ export function FinanceDashboard({
             <div className="text-3xl font-bold text-stone-800 dark:text-white">
               ฿{summary.totalExpense.toLocaleString()}
             </div>
-           </div>
+          </div>
         </div>
+      </div>
+
+      {/* Analytics Section */}
+      <div className="grid gap-8 lg:grid-cols-2">
+        <CashFlowChart transactions={transactions} />
+        <ExpensePieChart transactions={transactions} categories={categories} />
       </div>
 
       {/* Main Content Grid */}
       <div className="grid gap-8 lg:grid-cols-3">
         {/* Left Column: Wallets & Transactions List */}
-        <div className="lg:col-span-2 space-y-8">
+        <div className="lg:col-span-2 space-y-8 min-w-0">
           <WalletList wallets={wallets} />
 
           <TransactionList
             transactions={transactions}
             categories={categories}
             wallets={wallets}
+          />
+
+          <BudgetManager
+            categories={categories}
+            budgets={budgets}
+            transactions={transactions}
+            month={new Date().getMonth() + 1}
+            year={new Date().getFullYear()}
           />
         </div>
 
@@ -106,11 +143,19 @@ export function FinanceDashboard({
         <Plus size={28} />
       </button>
 
-      <AddTransactionModal 
-        wallets={wallets} 
-        categories={categories} 
-        isOpen={showAddTransactionModal} 
-        onClose={() => setShowAddTransactionModal(false)} 
+      <AddTransactionModal
+        wallets={wallets}
+        categories={categories}
+        isOpen={showAddTransactionModal}
+        onClose={() => setShowAddTransactionModal(false)}
+      />
+
+      <YearInReviewModal
+        isOpen={showYearInReview}
+        onClose={() => setShowYearInReview(false)}
+        transactions={transactions}
+        categories={categories}
+        slips={initialSlips}
       />
     </div>
   );

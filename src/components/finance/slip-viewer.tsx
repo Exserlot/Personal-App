@@ -22,7 +22,7 @@ export function SlipViewer({ slip, onClose }: SlipViewerProps) {
 
     const handleDownload = () => {
         const link = document.createElement("a");
-        link.href = slip.imagePath;
+        link.href = slip.imagePath.startsWith("/") ? slip.imagePath : `/api/media?slipId=${slip.id}`;
         link.download = slip.fileName;
         document.body.appendChild(link);
         link.click();
@@ -53,7 +53,7 @@ export function SlipViewer({ slip, onClose }: SlipViewerProps) {
                         <div className="space-y-4">
                             <div className="rounded-lg overflow-hidden border border-border bg-muted">
                                 <img
-                                    src={slip.imagePath}
+                                    src={slip.imagePath.startsWith("/") ? slip.imagePath : `/api/media?slipId=${slip.id}`}
                                     alt={slip.fileName}
                                     className="w-full h-auto"
                                 />

@@ -8,14 +8,24 @@ interface UpcomingBillsProps {
 }
 
 export function UpcomingBills({ subscriptions }: UpcomingBillsProps) {
-  // Sort subscriptions by price or arbitrarily for now, 
-  // ideally we calculate exact next billing date, but for a quick overview
-  // we can just list active subscriptions sorted by price descending.
-  
-  const activeSubs = subscriptions.sort((a, b) => b.price - a.price).slice(0, 5);
+  const getNextDate = (sub: Subscription) => {
+    if (sub.nextBillingDate) return new Date(sub.nextBillingDate);
+    // Rough estimate if missing
+    if (sub.lastPaidDate) {
+      const date = new Date(sub.lastPaidDate);
+      if (sub.cycle === "monthly") date.setMonth(date.getMonth() + 1);
+      else if (sub.cycle === "yearly") date.setFullYear(date.getFullYear() + 1);
+      return date;
+    }
+    return new Date(9999, 11, 31); // Far future if no dates
+  };
+
+  const activeSubs = [...subscriptions]
+    .sort((a, b) => getNextDate(a).getTime() - getNextDate(b).getTime())
+    .slice(0, 5);
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("th-TH").format(amount);
+    return new Intl.NumberFormat("en-US").format(amount);
   };
 
   return (
@@ -40,16 +50,14 @@ export function UpcomingBills({ subscriptions }: UpcomingBillsProps) {
                 </div>
                 <div>
                   <p className="font-medium text-sm leading-none mb-1">{sub.name}</p>
-                  <p className="text-xs text-muted-foreground capitalize">{sub.cycle} Billing</p>
+                  <p className="text-xs text-muted-foreground capitalize">{sub.cycle.toLowerCase()} Billing</p>
                 </div>
               </div>
               <div className="text-right">
                 <p className="font-bold text-sm">฿{formatCurrency(sub.price)}</p>
-                {sub.lastPaidDate && (
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    Paid {new Date(sub.lastPaidDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                  </p>
-                )}
+                <p className={`text-[10px] font-bold mt-0.5 ${getNextDate(sub).getTime() - new Date().getTime() <= 3 * 24 * 60 * 60 * 1000 ? 'text-rose-500' : 'text-muted-foreground'}`}>
+                  Due {getNextDate(sub).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </p>
               </div>
             </div>
           ))}

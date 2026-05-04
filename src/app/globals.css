@@ -139,3 +139,48 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--muted-foreground);
 }
+
+/* Hide default number input spinners globally */
+@layer base {
+  input, textarea, select {
+    background-color: transparent;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+
+  /* Fix for date inputs brighter background in some browsers */
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.5); /* Make it more visible on glass */
+  }
+}
+
+@layer components {
+  .gradient-border-mask {
+    position: relative;
+  }
+  .gradient-border-mask::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1.5px;
+    background: linear-gradient(to right, #ec4899, #8b5cf6); 
+    -webkit-mask: 
+        linear-gradient(#fff 0 0) content-box, 
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    transition: opacity 0.2s ease-in-out;
+  }
+  .gradient-border-mask:hover::before {
+    opacity: 0;
+  }
+}

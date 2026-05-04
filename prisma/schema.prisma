@@ -21,7 +21,11 @@ model User {
   providerId String?
   name       String?
   image      String?
-  createdAt  DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  // Gamification
+  exp            Int      @default(0)
+  unlockedBadges String[] // Array of badge IDs
 
   wishlistItems WishlistItem[]
   tasks         Task[]
@@ -33,6 +37,7 @@ model User {
   investments   InvestmentAsset[]
   subscriptions Subscription[]
   goals         YearlyGoal[]
+  budgets       Budget[]
   settings      UserSettings?
 }
 
@@ -118,6 +123,7 @@ model Category {
   userId       String
   user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions Transaction[]
+  budgets      Budget[]
 }
 
 enum TransactionType {
@@ -224,4 +230,19 @@ enum Theme {
   LIGHT
   DARK
   SYSTEM
+}
+
+model Budget {
+  id          String   @id @default(cuid())
+  amount      Decimal
+  month       Int
+  year        Int
+  categoryId  String
+  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, categoryId, month, year])
 }

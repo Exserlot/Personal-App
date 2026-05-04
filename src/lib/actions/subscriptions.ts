@@ -74,7 +74,7 @@ export async function updateSubscription(id: string, data: Partial<Omit<Subscrip
         name: data.name,
         price: data.price,
         cycle: data.cycle ? data.cycle.toUpperCase() as any : undefined,
-        nextBillingDate: data.nextBillingDate ? new Date(data.nextBillingDate) : undefined,
+        nextBillingDate: data.nextBillingDate === null ? null : (data.nextBillingDate ? new Date(data.nextBillingDate) : undefined),
         lastPaidDate: data.lastPaidDate ? new Date(data.lastPaidDate) : undefined,
         lastTransactionId: data.lastTransactionId,
         url: data.url,
@@ -227,3 +227,43 @@ export async function unmarkSubscriptionAsPaid(subId: string): Promise<{ success
     return { success: false, error: "Internal server error" };
   }
 }
+
+// --- Renewal Alerts ---
+
+function computeNextBillingDate(sub: Subscription): Date | null {
+  if (sub.nextBillingDate) return new Date(sub.nextBillingDate);
+  if (sub.lastPaidDate) {
+    const date = new Date(sub.lastPaidDate);
+    switch (sub.cycle) {
+      case "daily": date.setDate(date.getDate() + 1); break;
+      case "monthly": date.setMonth(date.getMonth() + 1); break;
+      case "yearly": date.setFullYear(date.getFullYear() + 1); break;
+    }
+    return date;
+  }
+  return null;
+}
+
+export async function getUpcomingRenewals(daysAhead: number = 7): Promise<(Subscription & { daysUntilDue: number })[]> {
+  try {
+    const subscriptions = await getSubscriptions();
+    const now = new Date();
+    const msAhead = daysAhead * 24 * 60 * 60 * 1000;
+
+    const upcoming = subscriptions
+      .map(sub => {
+        const nextDate = computeNextBillingDate(sub);
+        if (!nextDate) return null;
+        const diff = nextDate.getTime() - now.getTime();
+        if (diff < 0 || diff > msAhead) return null;
+        return { ...sub, daysUntilDue: Math.ceil(diff / (24 * 60 * 60 * 1000)) };
+      })
+      .filter(Boolean) as (Subscription & { daysUntilDue: number })[];
+
+    return upcoming.sort((a, b) => a.daysUntilDue - b.daysUntilDue);
+  } catch (error) {
+    console.error("getUpcomingRenewals error:", error);
+    return [];
+  }
+}
+

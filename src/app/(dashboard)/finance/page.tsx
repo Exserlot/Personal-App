@@ -6,16 +6,19 @@ import {
   getTransactions,
   getCategories,
   getFinanceSummary,
-  getSlips
+  getSlips,
+  getBudgets
 } from "@/lib/actions/finance";
 
 export default async function FinancePage() {
-  const [wallets, transactions, categories, summary, slips] = await Promise.all([
+  const now = new Date();
+  const [wallets, transactions, categories, summary, slips, budgets] = await Promise.all([
     getWallets(),
     getTransactions(),
     getCategories(),
     getFinanceSummary(),
     getSlips(),
+    getBudgets(now.getMonth() + 1, now.getFullYear()),
   ]);
 
   return (
@@ -31,6 +34,7 @@ export default async function FinancePage() {
         categories={categories}
         summary={summary}
         slips={slips}
+        budgets={budgets}
       />
     </div>
   );

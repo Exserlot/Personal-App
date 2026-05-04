@@ -72,7 +72,7 @@ export function SubscriptionDashboard({ subscriptions, userId, yearlyCost }: Sub
     }
   }
 
-  function formatDate(isoString?: string) {
+  function formatDate(isoString?: string | null) {
     if (!isoString) return "No date set";
     return new Date(isoString).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   }

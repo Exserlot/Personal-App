@@ -67,14 +67,26 @@ export async function toggleTask(id: string) {
     const task = await prisma.task.findUnique({ where: { id, userId } });
     
     if (task) {
+      const isCompleting = !task.completed;
       await prisma.task.update({
         where: { id },
-        data: { completed: !task.completed }
+        data: { completed: isCompleting }
       });
+      
+      // Award EXP if completing
+      let gamificationResult = null;
+      if (isCompleting) {
+        const { addExpAndCheckBadges } = await import("./gamification");
+        gamificationResult = await addExpAndCheckBadges(10);
+      }
+      
       revalidatePath("/productivity");
+      return { success: true, isCompleting, ...gamificationResult };
     }
+    return { success: false };
   } catch (error) {
     console.error("toggleTask error:", error);
+    return { success: false };
   }
 }
 
@@ -158,11 +170,13 @@ export async function toggleHabit(id: string, date: string) {
     if (habit) {
       const dates = [...habit.completedDates];
       const index = dates.indexOf(date);
+      let isCompleting = false;
       
       if (index > -1) {
         dates.splice(index, 1);
       } else {
         dates.push(date);
+        isCompleting = true;
       }
 
       await prisma.habit.update({
@@ -171,10 +185,20 @@ export async function toggleHabit(id: string, date: string) {
           completedDates: dates
         }
       });
+      
+      let gamificationResult = null;
+      if (isCompleting) {
+        const { addExpAndCheckBadges } = await import("./gamification");
+        gamificationResult = await addExpAndCheckBadges(15);
+      }
+
       revalidatePath("/productivity");
+      return { success: true, isCompleting, ...gamificationResult };
     }
+    return { success: false };
   } catch (error) {
     console.error("toggleHabit error:", error);
+    return { success: false };
   }
 }
 

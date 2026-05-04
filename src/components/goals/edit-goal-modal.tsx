@@ -6,6 +6,7 @@ import { updateGoal, deleteGoal } from "@/lib/actions/goals";
 import { X, Loader2, Save, Target, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { PREMIUM_INPUT_CLASS, PREMIUM_TEXTAREA_CLASS } from "@/lib/constants/styles";
 
 interface EditGoalModalProps {
   goal: YearlyGoal;
@@ -20,6 +21,8 @@ const STATUSES: { value: GoalStatus; label: string; color: string }[] = [
 ];
 
 import { GlobalModal } from "@/components/ui/global-modal";
+import { SaveButton } from "@/components/ui/save-button";
+import { DeleteButton } from "@/components/ui/delete-button";
 
 export function EditGoalModal({ goal, isOpen, onClose }: EditGoalModalProps) {
   const [loading, setLoading] = useState(false);
@@ -35,7 +38,7 @@ export function EditGoalModal({ goal, isOpen, onClose }: EditGoalModalProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title) return;
-    
+
     setLoading(true);
     try {
       await updateGoal(goal.id, {
@@ -79,47 +82,54 @@ export function EditGoalModal({ goal, isOpen, onClose }: EditGoalModalProps) {
     >
       <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          
           {/* Title */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Goal Title</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Goal Title
+            </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-xl bg-white/50 dark:bg-black/20 border border-white/40 dark:border-white/10 shadow-inner px-4 py-3 text-sm font-medium focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+              className={cn(PREMIUM_INPUT_CLASS)}
               required
             />
           </div>
 
           {/* Year */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Target Year</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Target Year
+            </label>
             <input
               type="number"
               value={year}
               onChange={(e) => setYear(parseInt(e.target.value))}
-              className="w-full rounded-xl bg-white/50 dark:bg-black/20 border border-white/40 dark:border-white/10 shadow-inner px-4 py-3 text-sm font-medium focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+              className={cn(PREMIUM_INPUT_CLASS)}
               required
             />
           </div>
-          
+
           {/* Status */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Status</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Status
+            </label>
             <div className="flex bg-secondary/50 p-1 rounded-xl h-[54px] items-center">
-              {STATUSES.map(s => (
+              {STATUSES.map((s) => (
                 <button
                   key={s.value}
                   type="button"
                   onClick={() => setStatus(s.value)}
                   className={cn(
                     "flex-1 h-full rounded-lg text-[10px] font-bold uppercase transition-all flex flex-col items-center justify-center gap-0.5",
-                    status === s.value ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                    status === s.value
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                    <div className={cn("h-1.5 w-1.5 rounded-full", s.color)} />
-                    {s.label}
+                  <div className={cn("h-1.5 w-1.5 rounded-full", s.color)} />
+                  {s.label}
                 </button>
               ))}
             </div>
@@ -127,33 +137,31 @@ export function EditGoalModal({ goal, isOpen, onClose }: EditGoalModalProps) {
 
           {/* Description */}
           <div className="space-y-1.5">
-             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</label>
-             <textarea
-               value={description}
-               onChange={(e) => setDescription(e.target.value)}
-               className="w-full rounded-xl bg-white/50 dark:bg-black/20 border border-white/40 dark:border-white/10 shadow-inner px-4 py-3 text-sm font-medium focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all outline-none resize-none h-24"
-             />
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Description
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className={cn(PREMIUM_TEXTAREA_CLASS, "h-24")}
+            />
           </div>
-
         </div>
 
-        <div className="p-6 pt-4 border-t border-white/20 dark:border-white/5 shrink-0 bg-white/30 dark:bg-black/10 backdrop-blur-md flex gap-3">
-           <button
-            type="button"
+        <div className="p-6 pt-4 border-t border-white/20 dark:border-white/5 shrink-0 flex gap-3">
+          <DeleteButton
             onClick={() => setShowDeleteConfirm(true)}
+            loading={deleting}
             disabled={deleting || loading}
-            className="px-4 rounded-xl border border-rose-200 text-rose-600 font-bold hover:bg-rose-50 transition-colors flex items-center justify-center"
-          >
-            {deleting ? <Loader2 className="animate-spin" size={18} /> : <Trash2 size={18} />}
-          </button>
-          <button
-            type="submit"
+            className="w-auto px-4"
+            label=""
+          />
+          <SaveButton
+            label="Save Changes"
+            loading={loading}
             disabled={loading || deleting}
-            className="flex-1 rounded-xl bg-primary py-3 text-primary-foreground font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
-          >
-            {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-            Save Changes
-          </button>
+            className="flex-1"
+          />
         </div>
       </form>
 

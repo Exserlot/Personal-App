@@ -67,7 +67,7 @@ export function SlipList({ slips, onSlipDeleted }: SlipListProps) {
                             {/* Image */}
                             <div className="aspect-[3/4] bg-muted relative overflow-hidden">
                                 <img
-                                    src={slip.imagePath}
+                                    src={slip.imagePath.startsWith("/") ? slip.imagePath : `/api/media?slipId=${slip.id}`}
                                     alt={slip.fileName}
                                     className="w-full h-full object-cover"
                                 />

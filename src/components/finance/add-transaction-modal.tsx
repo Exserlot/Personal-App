@@ -25,7 +25,7 @@ export function AddTransactionModal({ wallets, categories, isOpen, onClose }: Ad
           wallets={wallets} 
           categories={categories} 
           onSuccess={onClose}
-          className="border-none shadow-none bg-transparent"
+          isModal={true}
         />
       </div>
     </GlobalModal>

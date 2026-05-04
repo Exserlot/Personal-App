@@ -8,6 +8,7 @@ interface ParsedQRData {
   recipient?: string;
   reference?: string;
   rawData: string;
+  suggestedCategory?: string;
 }
 
 /**

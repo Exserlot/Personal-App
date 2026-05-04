@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import { X, AlertTriangle } from "lucide-react";
 import { useEffect } from "react";
@@ -57,12 +57,15 @@ export function ConfirmDialog({
       />
 
       {/* Dialog */}
-      <div className="relative bg-card border border-border rounded-xl shadow-2xl max-w-md w-full mx-4 animate-in zoom-in-95 duration-200">
+      <div className="relative border border-border rounded-xl shadow-2xl max-w-md w-full mx-4 animate-in zoom-in-95 duration-200 rounded-3xl bg-gradient-to-br from-rose-100/80 via-purple-50/80 to-sky-100/80 dark:from-rose-950/30 dark:via-purple-900/20 dark:to-sky-950/30 backdrop-blur-3xl shadow-2xl ring-1 ring-black/5 overflow-hidden relative flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-start gap-3 p-6 pb-4">
           {danger && (
             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-              <AlertTriangle className="text-red-600 dark:text-red-400" size={20} />
+              <AlertTriangle
+                className="text-red-600 dark:text-red-400"
+                size={20}
+              />
             </div>
           )}
           <div className="flex-1">
@@ -70,7 +73,7 @@ export function ConfirmDialog({
           </div>
           <button
             onClick={onClose}
-            className="flex-shrink-0 p-1 rounded-lg hover:bg-secondary transition-colors"
+            className="flex-shrink-0 p-1 rounded-lg hover:brightness-200 transition-colors"
           >
             <X size={20} className="text-muted-foreground" />
           </button>
@@ -85,7 +88,7 @@ export function ConfirmDialog({
         <div className="flex gap-3 p-6 pt-0">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 px-4 rounded-lg border border-border bg-background hover:bg-secondary transition-colors font-medium"
+            className="flex-1 py-2.5 px-4 rounded-lg border border-border bg-background/30 hover:brightness-200 transition-colors font-medium"
           >
             {cancelText}
           </button>

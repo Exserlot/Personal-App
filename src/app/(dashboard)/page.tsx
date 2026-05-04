@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { getWallets, getTransactions, getCategories, getFinanceSummary, getCashFlow } from "@/lib/actions/finance";
 import { getTasks } from "@/lib/actions/productivity";
 import { getWishlist } from "@/lib/actions/wishlist";
-import { getSubscriptions } from "@/lib/actions/subscriptions";
+import { getSubscriptions, getUpcomingRenewals } from "@/lib/actions/subscriptions";
 import { SummaryCards } from "@/components/dashboard/summary-cards";
 import { CashFlowChart } from "@/components/dashboard/cash-flow-chart";
 import { UpcomingBills } from "@/components/dashboard/upcoming-bills";
@@ -11,6 +11,7 @@ import { WalletWidget } from "@/components/dashboard/wallet-widget";
 import { TransactionWidget } from "@/components/dashboard/transaction-widget";
 import { TodoWidget } from "@/components/dashboard/todo-widget";
 import { WishlistWidget } from "@/components/dashboard/wishlist-widget";
+import { SubscriptionAlertBanner } from "@/components/dashboard/subscription-alert-banner";
 import { LayoutDashboard } from "lucide-react";
 
 export default async function DashboardPage() {
@@ -25,7 +26,8 @@ export default async function DashboardPage() {
     wishlistItems,
     summary,
     cashFlow,
-    subscriptions
+    subscriptions,
+    upcomingRenewals
   ] = await Promise.all([
     getWallets(),
     getTransactions(),
@@ -34,7 +36,8 @@ export default async function DashboardPage() {
     getWishlist(),
     getFinanceSummary(),
     getCashFlow(6),
-    getSubscriptions()
+    getSubscriptions(),
+    getUpcomingRenewals(7)
   ]);
 
   return (
@@ -47,6 +50,8 @@ export default async function DashboardPage() {
         </h1>
         <p className="text-muted-foreground mt-1">Welcome back! Here's your overview.</p>
       </div>
+
+      <SubscriptionAlertBanner upcomingRenewals={upcomingRenewals} />
 
       {/* Level 1: Summary Cards */}
       <SummaryCards 

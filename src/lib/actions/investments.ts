@@ -128,3 +128,88 @@ export async function getInvestmentSummary(): Promise<{ totalInvested: number; t
     };
   }
 }
+
+// Map common symbols to CoinGecko IDs
+const CRYPTO_MAP: Record<string, string> = {
+  'btc': 'bitcoin',
+  'eth': 'ethereum',
+  'bnb': 'binancecoin',
+  'sol': 'solana',
+  'ada': 'cardano',
+  'xrp': 'ripple',
+  'doge': 'dogecoin',
+  'dot': 'polkadot',
+  'link': 'chainlink',
+  'matic': 'matic-network'
+};
+
+export async function syncInvestmentPrices(): Promise<{ success: boolean; message: string }> {
+  try {
+    const userId = await getCurrentUser();
+    const investments = await prisma.investmentAsset.findMany({
+      where: { userId, type: "CRYPTO" }
+    });
+
+    if (investments.length === 0) {
+      return { success: true, message: "No crypto investments to sync." };
+    }
+
+    // Collect ids to fetch
+    const fetchIds: string[] = [];
+    const invMap: Record<string, any[]> = {}; // Map coingecko id to investment records
+
+    investments.forEach(inv => {
+      // Clean up name, assume user might input "BTC", "Bitcoin", "ETH", etc.
+      let key = inv.name.toLowerCase().trim();
+      let cgId = CRYPTO_MAP[key] || key; // If not in map, try using the name directly
+      
+      if (!fetchIds.includes(cgId)) fetchIds.push(cgId);
+      
+      if (!invMap[cgId]) invMap[cgId] = [];
+      invMap[cgId].push(inv);
+    });
+
+    // Fetch from CoinGecko
+    const response = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${fetchIds.join(',')}&vs_currencies=thb`);
+    
+    if (!response.ok) {
+      throw new Error(`CoinGecko API returned ${response.status}`);
+    }
+
+    const data = await response.json();
+    let updatedCount = 0;
+
+    // Update prices in DB
+    await prisma.$transaction(async (tx) => {
+      for (const cgId of Object.keys(data)) {
+        const thbPrice = data[cgId].thb;
+        if (thbPrice && invMap[cgId]) {
+          for (const inv of invMap[cgId]) {
+            // Assume amountInvested or a note holds the 'quantity' of the coin.
+            // But since our schema only has `amountInvested` (Fiat) and `currentValue` (Fiat),
+            // we need to know the QUANTITY to multiply by the new price.
+            // If the user stored quantity in `note`, we could parse it.
+            // As a simple heuristic for Phase 2, let's parse quantity from `note` (e.g., "0.5")
+            // If `note` is not a number, we can't update it accurately.
+            const quantity = parseFloat(inv.note || "0");
+            
+            if (quantity > 0) {
+              const newCurrentValue = quantity * thbPrice;
+              await tx.investmentAsset.update({
+                where: { id: inv.id },
+                data: { currentValue: newCurrentValue }
+              });
+              updatedCount++;
+            }
+          }
+        }
+      }
+    });
+
+    revalidatePath("/finance");
+    return { success: true, message: `Successfully updated ${updatedCount} investment prices.` };
+  } catch (error) {
+    console.error("Sync investment prices error:", error);
+    return { success: false, message: "Failed to sync live prices." };
+  }
+}

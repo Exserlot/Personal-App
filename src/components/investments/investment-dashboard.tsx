@@ -4,7 +4,8 @@ import { useState } from "react";
 import { InvestmentAsset } from "@/types";
 import { AddInvestmentModal } from "./add-investment-modal";
 import { EditInvestmentModal } from "./edit-investment-modal";
-import { Plus, TrendingUp, TrendingDown, Briefcase, Bitcoin, BarChart3, LineChart } from "lucide-react";
+import { syncInvestmentPrices } from "@/lib/actions/investments";
+import { Plus, TrendingUp, TrendingDown, Briefcase, Bitcoin, BarChart3, LineChart, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface InvestmentDashboardProps {
@@ -21,6 +22,17 @@ interface InvestmentDashboardProps {
 export function InvestmentDashboard({ investments, userId, summary }: InvestmentDashboardProps) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingInv, setEditingInv] = useState<InvestmentAsset | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    setSyncMessage(null);
+    const result = await syncInvestmentPrices();
+    setSyncMessage(result.message);
+    setSyncing(false);
+    setTimeout(() => setSyncMessage(null), 4000);
+  };
 
   const isPositive = summary.profitLoss >= 0;
 
@@ -53,14 +65,31 @@ export function InvestmentDashboard({ investments, userId, summary }: Investment
           </h2>
           <p className="text-muted-foreground">Track your wealth building journey.</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="hidden sm:flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl font-bold shadow-md hover:opacity-90 transition-all"
-        >
-          <Plus size={18} />
-          Add Asset
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="hidden sm:flex items-center gap-2 bg-white/50 dark:bg-stone-800/50 hover:bg-white/80 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 px-4 py-2 rounded-xl font-bold shadow-sm backdrop-blur-md transition-all border border-white/20 dark:border-white/10 disabled:opacity-50"
+          >
+            <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
+            {syncing ? 'Syncing...' : 'Sync Prices'}
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="hidden sm:flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-xl font-bold shadow-md hover:opacity-90 transition-all"
+          >
+            <Plus size={18} />
+            Add Asset
+          </button>
+        </div>
       </div>
+
+      {/* Sync Feedback Toast */}
+      {syncMessage && (
+        <div className="rounded-2xl border border-white/30 dark:border-white/10 bg-emerald-100/80 dark:bg-emerald-900/40 backdrop-blur-xl px-5 py-3 shadow-lg text-sm font-medium text-emerald-800 dark:text-emerald-300 animate-in fade-in slide-in-from-top-2 duration-300">
+          {syncMessage}
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

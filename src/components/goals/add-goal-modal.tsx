@@ -12,6 +12,9 @@ interface AddGoalModalProps {
 }
 
 import { GlobalModal } from "@/components/ui/global-modal";
+import { SaveButton } from "@/components/ui/save-button";
+import { cn } from "@/lib/utils";
+import { PREMIUM_INPUT_CLASS, PREMIUM_TEXTAREA_CLASS } from "@/lib/constants/styles";
 
 export function AddGoalModal({ isOpen, onClose, userId }: AddGoalModalProps) {
   const [loading, setLoading] = useState(false);
@@ -24,7 +27,7 @@ export function AddGoalModal({ isOpen, onClose, userId }: AddGoalModalProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title) return;
-    
+
     setLoading(true);
     try {
       await addGoal({
@@ -58,15 +61,16 @@ export function AddGoalModal({ isOpen, onClose, userId }: AddGoalModalProps) {
     >
       <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
         <div className="flex-1 overflow-y-auto p-6 space-y-5">
-          
           {/* Title */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Goal Title</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Goal Title
+            </label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-xl bg-white/50 dark:bg-black/20 border border-white/40 dark:border-white/10 shadow-inner px-4 py-3 text-sm font-medium focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+              className={cn(PREMIUM_INPUT_CLASS)}
               placeholder="What do you want to achieve?"
               required
               autoFocus
@@ -75,38 +79,38 @@ export function AddGoalModal({ isOpen, onClose, userId }: AddGoalModalProps) {
 
           {/* Year */}
           <div className="space-y-1.5">
-            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Target Year</label>
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Target Year
+            </label>
             <input
               type="number"
               value={year}
               onChange={(e) => setYear(parseInt(e.target.value))}
-              className="w-full rounded-xl bg-white/50 dark:bg-black/20 border border-white/40 dark:border-white/10 shadow-inner px-4 py-3 text-sm font-medium focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all outline-none"
+              className={cn(PREMIUM_INPUT_CLASS)}
               required
             />
           </div>
 
           {/* Description */}
           <div className="space-y-1.5">
-             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description (Optional)</label>
-             <textarea
-               value={description}
-               onChange={(e) => setDescription(e.target.value)}
-               className="w-full rounded-xl bg-white/50 dark:bg-black/20 border border-white/40 dark:border-white/10 shadow-inner px-4 py-3 text-sm font-medium focus:bg-background focus:ring-2 focus:ring-primary/20 transition-all outline-none resize-none h-24"
-               placeholder="More details about this goal..."
-             />
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Description (Optional)
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className={cn(PREMIUM_TEXTAREA_CLASS, "h-24")}
+              placeholder="More details about this goal..."
+            />
           </div>
-
         </div>
 
-        <div className="p-6 pt-4 border-t border-white/20 dark:border-white/5 shrink-0 bg-white/30 dark:bg-black/10 backdrop-blur-md">
-          <button
-            type="submit"
+        <div className="p-6 pt-4 border-t border-white/20 dark:border-white/5">
+          <SaveButton
+            label="Add Goal"
+            loading={loading}
             disabled={loading}
-            className="w-full rounded-xl bg-primary py-3 text-primary-foreground font-bold hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
-          >
-            {loading ? <Loader2 className="animate-spin" size={18} /> : <Save size={18} />}
-            Add Goal
-          </button>
+          />
         </div>
       </form>
     </GlobalModal>

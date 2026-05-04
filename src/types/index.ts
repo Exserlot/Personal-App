@@ -60,6 +60,15 @@ export interface Category {
   userId: string;
 }
 
+export interface Budget {
+  id: string;
+  amount: number;
+  month: number;
+  year: number;
+  categoryId: string;
+  userId: string;
+}
+
 export interface Transaction {
   id: string;
   date: string; // ISO Date String
@@ -91,6 +100,7 @@ export interface PaymentSlip {
     recipient?: string;
     reference?: string;
     rawData: string;
+    suggestedCategory?: string;
   };
   linkedTransactionId?: string; // Optional link to transaction
   note?: string;
@@ -119,7 +129,7 @@ export interface Subscription {
   name: string;
   price: number;
   cycle: BillingCycle;
-  nextBillingDate?: string; // ISO Date (optional, for tracking)
+  nextBillingDate?: string | null; // ISO Date (optional, for tracking)
   lastPaidDate?: string | null; // ISO Date of the last payment marked for this cycle
   lastTransactionId?: string | null; // ID of the transaction created for the current cycle
   url?: string; // Link to manage subscription
@@ -161,6 +171,8 @@ export interface User {
   name?: string;
   image?: string;
   createdAt: string; // ISO Date
+  exp: number;
+  unlockedBadges: string[];
 }
 
 // Extend NextAuth types

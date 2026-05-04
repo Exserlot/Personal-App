@@ -7,20 +7,18 @@ import {
   TotalAssetsSummary,
   WalletType,
   TransactionType,
-  PaymentSlip
+  PaymentSlip,
+  Budget
 } from "@/types";
 import { revalidatePath } from "next/cache";
 import { randomUUID } from "crypto";
 import { extractQRData } from "../qr-parser";
 import jsQR from "jsqr";
 import { createCanvas, loadImage } from "canvas";
-import { writeFile, unlink, mkdir } from "fs/promises";
-import { join } from "path";
+import { bucket } from "@/lib/gcs";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-const SLIPS_DIR = join(process.cwd(), "public", "slips");
-const ICONS_DIR = join(process.cwd(), "public", "icons");
 
 async function getCurrentUser() {
   const session = await auth();
@@ -168,17 +166,18 @@ export async function uploadWalletIcon(formData: FormData): Promise<{ success: b
 
     const fileExt = file.name.split(".").pop() || "png";
     const fileName = `icon-${randomUUID()}.${fileExt}`;
-    const filePath = join(ICONS_DIR, fileName);
+    const gcsPath = `icons/${fileName}`;
 
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     
-    try {
-      await mkdir(ICONS_DIR, { recursive: true });
-    } catch {}
+    const gcsFile = bucket.file(gcsPath);
+    await gcsFile.save(buffer, {
+      resumable: false,
+      metadata: { contentType: file.type }
+    });
 
-    await writeFile(filePath, buffer);
-    return { success: true, path: `/icons/${fileName}` };
+    return { success: true, path: gcsPath };
   } catch (error) {
     console.error("uploadWalletIcon Error:", error);
     return { success: false };
@@ -363,6 +362,11 @@ export async function deleteTransaction(id: string): Promise<boolean> {
       const tx = await txClient.transaction.findUnique({ where: { id, userId }});
       if (!tx) throw new Error("Transaction not found");
 
+      let slip = null;
+      if (tx.slipId) {
+        slip = await txClient.paymentSlip.findUnique({ where: { id: tx.slipId } });
+      }
+
       // Revert balance
       if (tx.type === "income") {
         await txClient.wallet.update({
@@ -387,11 +391,16 @@ export async function deleteTransaction(id: string): Promise<boolean> {
 
       await txClient.transaction.delete({ where: { id }});
       
-      if (tx.slipId) {
-        await txClient.paymentSlip.update({
-          where: { id: tx.slipId },
-          data: { linkedTransactionId: null }
-        });
+      if (slip) {
+        // Delete image file from GCS
+        try {
+          if (slip.imagePath && !slip.imagePath.startsWith("/")) {
+            await bucket.file(slip.imagePath).delete();
+          }
+        } catch (e) {
+          console.error("GCS delete error:", e);
+        }
+        await txClient.paymentSlip.delete({ where: { id: slip.id } });
       }
     });
 
@@ -620,28 +629,53 @@ export async function uploadSlip(
 
     if (options.requireQR) {
       if (!qrData || !qrData.amount) {
-        let errorMessage = "Could not read payment data from QR code. Image was not saved.";
-        if (qrData && qrData.reference) {
-          errorMessage = `This is a 'Slip Verify' QR (Ref: ${qrData.reference}) which does not contain the transaction amount.`;
+        // --- OCR Fallback: Try reading text from image using Vision AI ---
+        try {
+          const { extractDataFromImage } = await import('@/lib/vision');
+          const ocrResult = await extractDataFromImage(buffer);
+          
+          if (ocrResult.amount) {
+            qrData = qrData 
+              ? { ...qrData, amount: ocrResult.amount, ocrDetected: true, suggestedCategory: ocrResult.suggestedCategory } 
+              : { amount: ocrResult.amount, ocrDetected: true, suggestedCategory: ocrResult.suggestedCategory };
+          } else {
+            // OCR couldn't find an amount either
+            let errorMessage = "Could not read the payment amount from the image or QR code.";
+            if (qrData && qrData.reference) {
+              errorMessage = `This is a 'Slip Verify' QR (Ref: ${qrData.reference}) and AI could not read the text amount from the image.`;
+            }
+            return { success: false, error: errorMessage };
+          }
+        } catch (ocrError) {
+          console.error("OCR Error during fallback:", ocrError);
+          return { success: false, error: "AI processing failed while trying to read the slip." };
         }
-        return { success: false, error: errorMessage };
+      } else {
+        // If QR read successfully, try to suggest category from recipient name
+        if (qrData && qrData.recipient) {
+           const { suggestCategoryFromText } = await import('@/lib/vision');
+           const suggested = suggestCategoryFromText(qrData.recipient);
+           if (suggested) {
+             qrData.suggestedCategory = suggested;
+           }
+        }
       }
     }
 
     const fileExt = file.name.split(".").pop() || "jpg";
     const fileName = `${randomUUID()}.${fileExt}`;
-    const filePath = join(SLIPS_DIR, fileName);
+    const gcsPath = `slips/${fileName}`;
 
-    try {
-      await mkdir(SLIPS_DIR, { recursive: true });
-    } catch {}
-
-    await writeFile(filePath, buffer);
+    const gcsFile = bucket.file(gcsPath);
+    await gcsFile.save(buffer, {
+      resumable: false,
+      metadata: { contentType: file.type }
+    });
 
     const newSlip = await prisma.paymentSlip.create({
       data: {
         fileName: file.name,
-        imagePath: `/slips/${fileName}`,
+        imagePath: gcsPath,
         qrData: qrData as any,
         note: note || undefined,
         user: { connect: { id: userId } }
@@ -663,11 +697,14 @@ export async function deleteSlip(id: string): Promise<boolean> {
 
     if (!slip) return false;
 
-    // Delete image file
+    // Delete image file from GCS
     try {
-      const filePath = join(process.cwd(), "public", slip.imagePath);
-      await unlink(filePath);
-    } catch {}
+      if (slip.imagePath && !slip.imagePath.startsWith("/")) {
+        await bucket.file(slip.imagePath).delete();
+      }
+    } catch (e) {
+      console.error("GCS delete error:", e);
+    }
 
     await prisma.paymentSlip.delete({ where: { id } });
 
@@ -724,25 +761,56 @@ export async function uploadSlipAndCreateTransaction(
       return { success: false, error: "No QR code or amount found in slip", slip };
     }
 
-    let foodCategory = await prisma.category.findFirst({
-      where: { userId, name: { equals: "food", mode: "insensitive" }, type: "expense" }
-    });
-    
-    if (!foodCategory) {
-      foodCategory = await prisma.category.create({
-        data: {
-          name: "Food",
-          type: "expense",
-          color: "#F59E0B",
-          icon: "dining",
-          user: { connect: { id: userId } }
+    const overrideWalletId = formData.get("walletId") as string | null;
+    const overrideCategoryId = formData.get("categoryId") as string | null;
+
+    let targetCategoryId = overrideCategoryId;
+    if (!targetCategoryId) {
+      let categoryName = "Shopping"; // Fallback default
+      let categoryIcon = "shopping";
+      let categoryColor = "#F59E0B";
+
+      if (slip.qrData && slip.qrData.suggestedCategory) {
+        categoryName = slip.qrData.suggestedCategory.charAt(0).toUpperCase() + slip.qrData.suggestedCategory.slice(1);
+        
+        switch (slip.qrData.suggestedCategory.toLowerCase()) {
+          case 'food': categoryIcon = "food"; categoryColor = "#F59E0B"; break;
+          case 'shopping': categoryIcon = "shopping"; categoryColor = "#8B5CF6"; break;
+          case 'travel': categoryIcon = "car"; categoryColor = "#3B82F6"; break;
+          case 'health': categoryIcon = "health"; categoryColor = "#EF4444"; break;
+          case 'bills': categoryIcon = "bills"; categoryColor = "#10B981"; break;
+          case 'entertainment': categoryIcon = "entertainment"; categoryColor = "#EC4899"; break;
         }
+      } else {
+        categoryName = "Food";
+        categoryIcon = "food";
+      }
+
+      let aiCategory = await prisma.category.findFirst({
+        where: { userId, name: { equals: categoryName, mode: "insensitive" }, type: "expense" }
       });
+      
+      if (!aiCategory) {
+        aiCategory = await prisma.category.create({
+          data: {
+            name: categoryName,
+            type: "expense",
+            color: categoryColor,
+            icon: categoryIcon,
+            user: { connect: { id: userId } }
+          }
+        });
+      }
+      targetCategoryId = aiCategory.id;
     }
 
-    const wallet = await prisma.wallet.findFirst({ where: { userId } });
-    if (!wallet) {
-      return { success: false, error: "No wallet found. Please create a wallet first.", slip };
+    let targetWalletId = overrideWalletId;
+    if (!targetWalletId) {
+      const wallet = await prisma.wallet.findFirst({ where: { userId } });
+      if (!wallet) {
+        return { success: false, error: "No wallet found. Please create a wallet first.", slip };
+      }
+      targetWalletId = wallet.id;
     }
 
     const note = formData.get("note") as string | null;
@@ -753,8 +821,8 @@ export async function uploadSlipAndCreateTransaction(
       date: new Date().toISOString(),
       amount: slip.qrData.amount,
       type: "expense",
-      categoryId: foodCategory.id,
-      walletId: wallet.id,
+      categoryId: targetCategoryId,
+      walletId: targetWalletId,
       note: finalNote,
       slipId: slip.id,
     });
@@ -770,5 +838,64 @@ export async function uploadSlipAndCreateTransaction(
   } catch (error) {
     console.error("Upload slip and create transaction error:", error);
     return { success: false, error: "Failed to process slip" };
+  }
+}
+
+// --- Budgets ---
+
+export async function getBudgets(month: number, year: number) {
+  try {
+    const userId = await getCurrentUser();
+    const budgets = await prisma.budget.findMany({
+      where: { userId, month, year },
+      include: { category: true }
+    });
+    return budgets.map(b => ({
+      ...b,
+      amount: b.amount.toNumber()
+    }));
+  } catch (error) {
+    console.error("getBudgets Error:", error);
+    return [];
+  }
+}
+
+export async function setBudget(categoryId: string, amount: number, month: number, year: number): Promise<boolean> {
+  try {
+    const userId = await getCurrentUser();
+    
+    await prisma.budget.upsert({
+      where: {
+        userId_categoryId_month_year: {
+          userId, categoryId, month, year
+        }
+      },
+      update: { amount },
+      create: {
+        amount, month, year,
+        category: { connect: { id: categoryId } },
+        user: { connect: { id: userId } }
+      }
+    });
+
+    revalidatePath("/finance");
+    return true;
+  } catch (error) {
+    console.error("setBudget Error:", error);
+    return false;
+  }
+}
+
+export async function deleteBudget(id: string): Promise<boolean> {
+  try {
+    const userId = await getCurrentUser();
+    await prisma.budget.delete({
+      where: { id, userId }
+    });
+    revalidatePath("/finance");
+    return true;
+  } catch (error) {
+    console.error("deleteBudget Error:", error);
+    return false;
   }
 }
